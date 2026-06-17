@@ -57,7 +57,7 @@ class DetectionLogic {
     private static final long PRE_WIN_END = 2000;
     private static final long POST_DELAY = 700;       // wait for keyword tail to decay
     private static final long POST_TAIL = 300;        // check last 300ms of post window
-    float jumpRatio = 3.0f;     // curRms/preMin > this → energy burst (adjustable)
+    float jumpRatio = 5.0f;     // curRms/preMin > this → energy burst (was 3.0, raised for music)
     private static final float RETURN_RATIO = 2.5f;   // postMin/preMin < 2.5 → went quiet
 
     // L5 pending
@@ -182,12 +182,18 @@ class DetectionLogic {
                             rms, preMin, rms / Math.max(preMin, 1), jumpRatio));
                     return null;
                 }
-                // Energy jump detected → set pending, wait for post confirmation
-                pendingWord = word; pendingTime = now; pendingProb = peak;
-                pendingPreMin = preMin;
-                cons = 0; consWord = "";
-                dbgFail = 0;
-                return null;
+                // preN < 5: insufficient RMS history → skip L5, fall through to trigger
+                if (preN < 5) {
+                    dbgPreRms = -1f;
+                    // Fall through to normal trigger (L5 skipped)
+                } else {
+                    // Energy jump detected → set pending, wait for post confirmation
+                    pendingWord = word; pendingTime = now; pendingProb = peak;
+                    pendingPreMin = preMin;
+                    cons = 0; consWord = "";
+                    dbgFail = 0;
+                    return null;
+                }
             } else {
                 dbgPreRms = -1f;
             }

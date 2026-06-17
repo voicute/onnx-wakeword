@@ -65,6 +65,7 @@ public class MainActivity extends AppCompatActivity implements AudioCapture.List
     private TextView thresholdText;
     private SeekBar thresholdSeekBar;
     private CheckBox l5CheckBox;
+    private CheckBox saveAudioCheckBox;
     private SeekBar l5RatioSeekBar;
     private TextView l5RatioText;
     private Button toggleButton;
@@ -88,6 +89,7 @@ public class MainActivity extends AppCompatActivity implements AudioCapture.List
         thresholdText = findViewById(R.id.thresholdText);
         thresholdSeekBar = findViewById(R.id.thresholdSeekBar);
         l5CheckBox = findViewById(R.id.l5CheckBox);
+        saveAudioCheckBox = findViewById(R.id.saveAudioCheckBox);
         l5RatioSeekBar = findViewById(R.id.l5RatioSeekBar);
         l5RatioText = findViewById(R.id.l5RatioText);
         toggleButton = findViewById(R.id.toggleButton);
@@ -119,6 +121,10 @@ public class MainActivity extends AppCompatActivity implements AudioCapture.List
         // L5 toggle
         l5CheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (detection != null) detection.l5Enabled = isChecked;
+        });
+
+        saveAudioCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            saveAudio = isChecked;
         });
 
         // L5 jump ratio slider: 2.0x ~ 5.0x (default 3.0x)
@@ -390,8 +396,26 @@ public class MainActivity extends AppCompatActivity implements AudioCapture.List
     // UI
     // ===================================================================
 
+    private boolean saveAudio = false;  // toggle for false-trigger analysis
+
     private void showDetection(String word, float prob, float bg, float rms, int cons) {
         detectText.setText(String.format(Locale.US, "%s 检测到! (%.0f%%)", word, prob * 100));
+
+        // Save last 2s audio for false-trigger analysis (async)
+        if (saveAudio && audioCapture != null) {
+            final int pos = audioCapture.getRingPos();
+            final AudioCapture cap = audioCapture;
+            final String w = word;
+            final java.io.File outDir = new java.io.File(getExternalFilesDir(null), "wake_audio");
+            outDir.mkdirs();
+            new Thread(() -> {
+                String ts = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US)
+                        .format(new java.util.Date());
+                String path = outDir + "/wake_" + w + "_" + ts + ".wav";
+                cap.saveWav(pos, 32000, path);
+                Log.i(TAG, "Audio saved: " + path);
+            }).start();
+        }
         detectText.setAlpha(1f);
         counterText.setText(String.format(Locale.US, "已检测到 %d 次", detection.count));
         addLogEntry(word, prob);

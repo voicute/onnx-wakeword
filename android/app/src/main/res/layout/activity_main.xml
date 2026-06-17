@@ -199,6 +199,30 @@
             android:layout_marginTop="1dp" />
     </LinearLayout>
 
+    <!-- Save audio toggle -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:layout_marginBottom="4dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="💾 保存唤醒音频"
+            android:textSize="12sp"
+            android:textColor="#e0e0e0" />
+
+        <CheckBox
+            android:id="@+id/saveAudioCheckBox"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:buttonTint="#16c79a" />
+    </LinearLayout>
+
     <!-- Detection log header -->
     <LinearLayout
         android:layout_width="match_parent"

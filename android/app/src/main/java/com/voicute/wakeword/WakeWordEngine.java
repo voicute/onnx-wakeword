@@ -160,7 +160,7 @@ public class WakeWordEngine {
                 JSONArray wordArray = info.getJSONArray("wake_words");
                 nClasses = info.getInt("n_classes");
                 String mFile = info.getString("model_file");
-                int ef = info.getInt("emb_frames");
+                int ef = info.optInt("emb_frames", 1);
                 wakeWordNames = new String[wordArray.length()];
                 for (int i = 0; i < wordArray.length(); i++) {
                     wakeWordNames[i] = wordArray.getString(i);
@@ -175,7 +175,7 @@ public class WakeWordEngine {
                     JSONObject m = modelArray.getJSONObject(i);
                     String word = m.getString("wake_word");
                     String file = m.getString("model_file");
-                    int ef = m.getInt("emb_frames");
+                    int ef = m.optInt("emb_frames", 1);
                     int cf = m.optInt("cons_frames", 5);
                     models.add(new ModelSlot(word, file, ef, cf));
                     Log.i(TAG, "Registered: " + word + " emb_frames=" + ef + " file=" + file);

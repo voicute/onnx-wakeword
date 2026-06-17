@@ -215,4 +215,33 @@ public class AudioCapture {
         for (int i = 0; i < len; i++) sum += (double) buf[i] * buf[i];
         return (float) Math.sqrt(sum / len);
     }
+
+    /** Save last N samples from ring buffer as a WAV file (for false-trigger analysis). */
+    public void saveWav(int pos, int samples, String filePath) {
+        short[] pcm = readChunk(pos, samples);
+        try {
+            java.io.DataOutputStream dos = new java.io.DataOutputStream(
+                    new java.io.FileOutputStream(filePath));
+            int dataLen = pcm.length * 2;
+            // WAV header
+            dos.writeBytes("RIFF");
+            dos.writeInt(Integer.reverseBytes(36 + dataLen));
+            dos.writeBytes("WAVE");
+            dos.writeBytes("fmt ");
+            dos.writeInt(Integer.reverseBytes(16));
+            dos.writeShort(Short.reverseBytes((short) 1));      // PCM
+            dos.writeShort(Short.reverseBytes((short) 1));      // mono
+            dos.writeInt(Integer.reverseBytes(SAMPLE_RATE));
+            dos.writeInt(Integer.reverseBytes(SAMPLE_RATE * 2)); // byte rate
+            dos.writeShort(Short.reverseBytes((short) 2));      // block align
+            dos.writeShort(Short.reverseBytes((short) 16));     // bits/sample
+            dos.writeBytes("data");
+            dos.writeInt(Integer.reverseBytes(dataLen));
+            // PCM data
+            for (short s : pcm) dos.writeShort(Short.reverseBytes(s));
+            dos.close();
+        } catch (java.io.IOException e) {
+            Log.e(TAG, "saveWav failed: " + e.getMessage());
+        }
+    }
 }
