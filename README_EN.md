@@ -178,9 +178,15 @@ L5 checks whether the current audio is a **human voice burst** (isolated energy 
 
 This makes L5 effective against music/video while remaining sensitive to real voice commands.
 
-## Model Versions
+## Version History
 
-See [models/README.md](models/README.md) for model version history and updates.
+**v9.3 (2026-06)**
+- Web: Fixed double run() scheduling causing detection freeze
+- Web: Added cache-control meta tags for WeChat WebView
+- Web: Support model_type='tcn'
+- Models upgraded to v9.3 with significantly reduced false triggers
+
+Model update log: [models/README.md](models/README.md)
 
 ## License
 

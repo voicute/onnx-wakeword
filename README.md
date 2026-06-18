@@ -144,6 +144,11 @@ DetectionResult result = engine.process(audioChunk);
 
 L5 倍率可调：`engine.set_L5_ratio(3.0)`（2.0-8.0x，默认 3.0）
 
-## 模型版本
+## 版本历史
 
-模型版本说明和更新日志见 [models/README.md](models/README.md)。
+**v9.3 (2026-06)**
+- Web: 修复 run() 双重调度导致的卡死, 支持 model_type='tcn'
+- Web: 添加缓存禁止 meta, 微信扫码缓存刷新
+- 模型升级到 v9.3，误触发率大幅降低
+
+模型版本更新日志见 [models/README.md](models/README.md)。
