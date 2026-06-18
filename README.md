@@ -43,6 +43,8 @@
 
 外加一个 `model_info.json` 描述模型配置。
 
+> 本仓库 `models/` 目录已包含演示模型，详见 [models/README.md](models/README.md) 版本说明。
+
 ## 模型配置
 
 ```json

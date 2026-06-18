@@ -52,6 +52,8 @@ Whichever tool you use, you need two files:
 
 Plus a `model_info.json` describing the configuration.
 
+> Demo models are included in `models/`. See [models/README.md](models/README.md) for version info.
+
 ## Model Configuration
 
 ```json
