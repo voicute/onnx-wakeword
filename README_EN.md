@@ -178,16 +178,9 @@ L5 checks whether the current audio is a **human voice burst** (isolated energy 
 
 This makes L5 effective against music/video while remaining sensitive to real voice commands.
 
-## Version History
+## Model Versions
 
-**v9.0 (2026-06)**
-- End-to-end inference architecture upgrade, model ~128KB
-- Unified API across Web / Linux / Android
-- L1–L5 five-layer false-trigger prevention, independently toggleable
-- L5 energy jump detection (curRms/preMin) for music/video rejection
-- COS ZIP direct loading
-- Quiet guard (preMin<50 && rms<80)
-- Auto cons_frames (2-char = 2 frames, 3+ char = 3 frames)
+See [models/README.md](models/README.md) for model version history and updates.
 
 ## License
 

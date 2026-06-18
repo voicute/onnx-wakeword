@@ -144,13 +144,6 @@ DetectionResult result = engine.process(audioChunk);
 
 L5 倍率可调：`engine.set_L5_ratio(3.0)`（2.0-8.0x，默认 3.0）
 
-## 版本历史
+## 模型版本
 
-**v9.0 (2026-06)**
-- 端到端推理架构升级，模型 ~128KB
-- Web/Linux/Android 三端统一 API
-- L1-L5 五层防误触发检测，可独立开关
-- L5 能量跳变（curRms/preMin），防视频/音乐误触发
-- COS ZIP 直加载
-- 安静守卫（preMin<50 && rms<80）
-- cons_frames 自动计算（2字=2帧, 3+字=3帧）
+模型版本说明和更新日志见 [models/README.md](models/README.md)。
