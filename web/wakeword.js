@@ -87,7 +87,7 @@ window.VoicuteWakeWord = {
                 info = JSON.parse(new TextDecoder().decode(buf));
             }
 
-            dscnnMode = info.model_type === 'dscnn';
+            dscnnMode = info.model_type === 'dscnn' || info.model_type === 'tcn';
             dscnnMelTime = info.mel_time || 98;
             const cfg = (info.multi_model && info.models) ? info.models : [info];
             models = await Promise.all(cfg.map(async m => ({
@@ -254,10 +254,10 @@ window.VoicuteWakeWord = {
                 for (let i = 0; i < needed; i++) raw[i] = ringBuf[(pos - needed + i + ringBuf.length) % ringBuf.length];
                 try {
                     const chunk = _resample(raw, hw);
-                    if (collected < needed) { busy = false; run(); return; }
+                    if (collected < needed) return;
                     const rms = _rms(chunk);
                     const result = await predict(chunk);
-                    if (!listening || !result) { busy = false; run(); return; }
+                    if (!listening || !result) return;
                     l5rms = rms; rmsHist[l5ri] = rms; rmsTHist[l5ri] = Date.now(); l5ri = (l5ri + 1) % RMS_HIST;
                     const d = detect(result.word, result.prob, result.consFrames || 5, cfgThreshold, cfgCooldown, Date.now());
                     if (d) onResult(d, result.prob, { bg: result.bg, all: result.all, rms });

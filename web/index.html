@@ -2,6 +2,9 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Voicute 唤醒词演示</title>
 <style>
@@ -124,7 +127,7 @@
 var s = document.getElementById('loadStatus');
 if (s) s.textContent = (typeof ort === 'undefined') ? 'ORT 加载失败!' : 'ORT OK';
 </script>
-<script src="wakeword.js?v=9"></script>
+<script src="wakeword.js?v=10"></script>
 <script>
 // ── Remote logging to PC ──
 window.remoteLog = function(msg) {
@@ -173,8 +176,8 @@ l5Ratio.oninput = () => {
     engine = VoicuteWakeWord.create();
     logStatus('加载模型配置...');
     await engine.load(
-      'https://voicute-1307385450.cos.ap-guangzhou.myqcloud.com/shared-models/manbo_basic_dcnn_v9.0.zip',
-      '../models/melspectrogram.onnx'
+      'models/manbo_v9.2_basic.zip',
+      'models/melspectrogram.onnx'
     );
     const models = engine.getModels();
     modelTags.innerHTML = models.map(m => `<span class="tag active">${m.name}</span>`).join('');
