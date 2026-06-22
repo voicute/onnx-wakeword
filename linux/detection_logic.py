@@ -39,6 +39,7 @@ class DetectionLogic:
 
     def record(self, prob, word, rms, now_ms):
         self.p_hist[self.hi] = prob; self.t_hist[self.hi] = now_ms; self.hi = (self.hi + 1) % self.HIST
+        # Only track non-wake-word frames for background EMA (matches Android)
         if not word: self.bg = self.bg * 0.995 + prob * 0.005
         self.rms_hist[self.ri] = rms; self.rms_t[self.ri] = now_ms; self.ri = (self.ri + 1) % self.RMS_HIST
 
@@ -65,7 +66,7 @@ class DetectionLogic:
                     self.cons_gap += 1
                     if self.cons_gap > self.MAX_GAP: self.cons, self.cons_word, self.cons_gap = 0, '', 0
                 if self.cons < self.cons_frames: return None
-            # L2: peak/bg
+            # L2: peak/background ratio — matches Android DetectionLogic L2
             if self.l2:
                 peak = max([self.p_hist[i] for i in range(self.HIST)
                             if self.t_hist[i] > 0 and (now_ms - self.t_hist[i]) < self.PEAK_WIN] + [0])
@@ -97,7 +98,7 @@ class DetectionLogic:
                      and trigger_word == self.bW[i] and self.bP[i] > 0.8)
             if bc >= self.BURST_N:
                 self.blocked = now_ms + self.BURST_BLOCK; self.cons = 0; self.cons_word = ''; return None
-        if trigger_word is not None:
+        if trigger_word:
             self.last_trig = now_ms; self.count += 1; self.cons = 0; self.cons_word = ''
             return trigger_word
         return None

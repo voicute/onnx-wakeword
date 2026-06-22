@@ -41,10 +41,13 @@
 | 唤醒词 | 模型文件 | 版本 |
 |--------|----------|:---:|
 | 曼波 | `manbo.onnx` | v9.3 |
+| 曼波 (语音定制) | `manbo_voice_model.onnx` | v9.3-voice |
 | 你好电脑 | `nihaodiannao.onnx` | v9.3 |
 | 开始播放 | `kaishibofang.onnx` | v9.3 |
 | 来福 | `laifu.onnx` | v9.3 |
 | 咕咕嘎嘎 | `gugugaga.onnx` | v9.3 |
+
+> **语音定制版 (voice)**: 在标准 TTS 训练基础上加入真人录音 x50 权重 + 80 epoch 训练，误触发率比标准版低约 17%，对特定用户的发音习惯识别更稳定。
 
 ## 版本说明
 

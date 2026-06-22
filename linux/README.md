@@ -56,3 +56,33 @@ python wakeword_engine.py models/model_info.json models/melspectrogram.onnx
 ## 32 位树莓派
 
 32 位 ARM 用 TFLite 推理，见 `infer_tflite.py`。
+
+## 离线误触发评测
+
+用 AISHELL-1 中文语音数据集测试模型误触发率（FA/h），可独立开关每层检测层。
+
+### 快速评测（推荐）
+
+```bash
+# 测试 2 小时 AISHELL 数据，对比多个模型
+python bench_fa.py --aishell-dir /path/to/data_aishell/wav/test \
+    --models manbo,manbo_voice,nihaodiannao --hours 2.0
+
+# 参数
+# --aishell-dir  (必填) AISHELL-1 wav 目录
+# --models       模型名: manbo, manbo_voice, nihaodiannao, kaishibofang, gugugaga, laifu
+# --hours        目标测试时长 (默认 2.0)
+# --thr          检测阈值 (默认 0.5)
+```
+
+### 逐层对比测试
+
+```bash
+# 测试单个模型，对比各检测层效果
+python test_l2_fa.py --aishell-dir /path/to/data_aishell/wav/test \
+    --model ../models/manbo.onnx --mel ../models/melspectrogram.onnx --max-files 500
+```
+
+### 测试数据
+
+使用 [AISHELL-1](https://www.openslr.org/33/) 中文语音数据集（不含唤醒词），滑窗推理，统计每小时误触发次数。测试脚本自动从 `data/negative/aishell/data_aishell/wav/test/` 读取 WAV 文件。

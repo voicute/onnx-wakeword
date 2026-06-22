@@ -159,6 +159,11 @@ window.VoicuteWakeWord = {
         // ═══════════════════════════
 
         function detect(word, prob, consFrames, threshold, cooldownMs, now) {
+            // Track peak history and background EMA for ALL frames (before early return)
+            // bgEma only updates on non-wake-word frames (matches Android: word==null → update)
+            pHist[pHi] = prob; tHist[pHi] = now; pHi = (pHi + 1) % PEAK_HIST;
+            if (!word || prob < threshold) bgEma = bgEma * 0.995 + prob * 0.005;
+
             if (!word || prob < threshold) { cons = 0; consWord = ''; return null; }
             if (now < blocked) { cons = 0; consWord = ''; return null; }
             debug.consCount = cons;
@@ -188,11 +193,15 @@ window.VoicuteWakeWord = {
                 if (cons < consFrames) return null;
             }
 
-            // L2: peak/background
+            // L2: peak/background ratio — matches Android DetectionLogic L2
             if (L2) {
-                pHist[pHi] = prob; tHist[pHi] = now; pHi = (pHi + 1) % PEAK_HIST;
-                if (!word) bgEma = bgEma * 0.995 + prob * 0.005;
-                if (prob <= bgEma * 2.0) { cons = 0; consWord = ''; return null; }
+                let peak = 0;
+                for (let i = 0; i < PEAK_HIST; i++) {
+                    if (tHist[i] > 0 && (now - tHist[i]) < 1500) {
+                        if (pHist[i] > peak) peak = pHist[i];
+                    }
+                }
+                if (peak <= bgEma * 3) { cons = 0; consWord = ''; return null; }
             }
 
             // L3: cooldown
