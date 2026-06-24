@@ -99,8 +99,8 @@
       <div><label><input type="checkbox" id="l4Check"> L4 爆发封锁</label> <span style="color:#888">解决音频回路或连续噪声导致的密集误触发</span></div>
       <div><label><input type="checkbox" id="l5Check"> L5 能量跳变</label> <span style="color:#888">解决视频/音乐等持续噪声</span>
         <span style="margin-left:8px;color:#888;">倍数:</span>
-        <input type="range" id="l5Ratio" min="20" max="80" value="30" style="width:80px;vertical-align:middle;">
-        <span id="l5RatioVal" style="color:#ffd93d;font-size:12px;">3.0x</span>
+        <input type="range" id="l5Ratio" min="20" max="80" value="50" style="width:80px;vertical-align:middle;">
+        <span id="l5RatioVal" style="color:#ffd93d;font-size:12px;">5.0x</span>
       </div>
     </div>
   </div>
@@ -188,6 +188,12 @@ l5Ratio.oninput = () => {
     btnToggle.className = 'btn btn-start';
     document.getElementById('btnClear').onclick = () => { logBox.innerHTML = ''; logCount = 0; if (engine) engine.reset(); };
     statusText.textContent = `已加载 ${models.length} 个唤醒词，点击开始`;
+    // Debug: show detection layer status in real-time
+    setInterval(() => {
+      if (engine && engine.debug && engine.debug.lastBlock && running) {
+        detectDebug.textContent = engine.debug.lastBlock + ' bg:' + engine.debug.bg.toFixed(4);
+      }
+    }, 200);
   } catch (e) {
     btnToggle.textContent = '加载失败';
     statusText.textContent = '错误: ' + (e.message || e);
@@ -228,7 +234,7 @@ async function start() {
 
       // Debug: show background & RMS (matches Android scoreText)
       if (info) {
-        detectDebug.textContent = `bg:${(info.bg*100||0).toFixed(0)}% rms:${(info.rms||0).toFixed(0)}`;
+        detectDebug.textContent = `bg:${(info.bg*100||0).toFixed(0)}% rms:${(info.rms||0).toFixed(0)} block:${info.block||''}`;
       }
 
       document.getElementById('confBar').style.width = Math.min(100, prob * 100) + '%';

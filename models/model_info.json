@@ -3,6 +3,6 @@
   "mel_time": 98,
   "multi_model": true,
   "models": [
-    {"wake_word": "曼波", "model_file": "dscnn_multiscale_manbo.onnx", "emb_frames": 1, "cons_frames": 2}
+    {"wake_word": "曼波", "model_file": "manbo.onnx", "emb_frames": 1, "cons_frames": 2}
   ]
 }

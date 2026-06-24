@@ -5,7 +5,7 @@ Python SDK，麦克风实时唤醒词检测。API 与 Web/Android 统一。
 ## 安装
 
 ```bash
-pip install onnxruntime numpy pyaudio
+pip install onnxruntime numpy sounddevice
 ```
 
 ## 使用
@@ -25,33 +25,32 @@ engine.set_L5_ratio(3.0)  # L5 倍数
 engine.start(lambda word, prob, info: print(f'检测到: {word} ({prob:.0%})'))
 ```
 
-## 命令行 Demo
+## 快速测试（麦克风）
 
 ```bash
-python wakeword_engine.py models/model_info.json models/melspectrogram.onnx
+# 基础模式：只开 L1（连续帧），最高灵敏度
+python mic_test.py
+
+# 全开模式：L1-L5 全部启用，最低误触发
+python mic_test.py --all
+
+# 其他选项
+python mic_test.py --model nihaodiannao    # 换模型
+python mic_test.py --thr 0.6               # 提高阈值
+python mic_test.py --list-devices           # 查看麦克风设备
 ```
-
-## API 完整对照
-
-| Web JS | Linux Python |
-|------|------|
-| `VoicuteWakeWord.create()` | `WakeWordEngine()` |
-| `engine.load(info, mel)` | `engine.load(info, mel)` |
-| `engine.start(cb)` | `engine.start(cb)` |
-| `engine.predict(audio)` | `engine.predict(audio)` |
-| `engine.set_L1(v)` | `engine.set_L1(v)` |
-| `engine.set_L5_ratio(v)` | `engine.set_L5_ratio(v)` |
-| `engine.stop()` | `engine.stop()` |
 
 ## L1-L5 检测层
 
-| 层 | 默认 | 说明 |
-|:---:|:---:|------|
-| L1 | on / 3帧 | 连续帧过滤瞬态噪声 |
-| L2 | off | 峰值/背景比 |
-| L3 | off | 1.5s 冷却 |
-| L4 | off | 爆发封锁 |
-| L5 | off | 能量跳变（防视频/音乐） |
+| 层 | 推荐 | 说明 | 什么时候开 |
+|:---:|:---:|------|------|
+| L1 | **必开** | 连续帧过滤瞬态噪声（键盘、椅子响） | 始终开启 |
+| L3 | **建议开** | 1.5s 冷却防重复触发 | L1 不够时开 |
+| L5 | 按需 | 能量跳变防视频/音乐误触发 | 音箱/嘈杂环境 |
+| L2 | 按需 | 峰值/背景比，防模型幻觉 | 极安静环境有误触时 |
+| L4 | 按需 | 爆发封锁防回声回路 | 喇叭播放回声导致误触时 |
+
+> **建议流程**：先只开 L1 测识别率 → 有连击开 L3 → 有噪音误触发开 L5 → 还不行再开 L2/L4。不要一次全开，层数越多识别越慢越严格。
 
 ## 32 位树莓派
 

@@ -3,11 +3,11 @@
 
 `唤醒词` · `关键词识别` · `语音唤醒` · `自定义唤醒词` · `离线语音识别` · `KWS` · `Keyword Spotting` · `Wake Word` · `ONNX` · `端侧推理` · `ESP32` · `Android` · `开源`
 
-> **离线运行 · 模型 < 130KB · 不上传音频 · ESP32/Android/Linux/Web 全平台**
+> **离线运行 · 模型 < 130KB · 不上传音频 · ESP32/Android/Python/Web 全平台**
 
 [:us: English](README_EN.md) | 🚧 English wake word support is under development — [learn more](README_EN.md#-english-wake-word-support--coming-soon)
 
-本仓库提供各平台的开源唤醒词/关键词识别推理代码。支持自定义唤醒词，拿到 ONNX 模型就能在 Android、Web、Linux、ESP32 上跑离线语音识别和语音唤醒，不依赖云端。
+本仓库提供各平台的开源唤醒词/关键词识别推理代码。支持自定义唤醒词，拿到 ONNX 模型就能在 Android、Web、Python (Linux/Windows/macOS)、ESP32 上跑离线语音识别和语音唤醒，不依赖云端。
 
 ## Web Demo
 
@@ -53,7 +53,7 @@
   "mel_time": 98,
   "multi_model": true,
   "models": [
-    {"wake_word": "曼波", "model_file": "dscnn_multiscale_manbo.onnx", "cons_frames": 3}
+    {"wake_word": "曼波", "model_file": "dscnn_multiscale_manbo.onnx", "cons_frames": 2}
   ]
 }
 ```
@@ -66,8 +66,8 @@
   "mel_time": 98,
   "multi_model": true,
   "models": [
-    {"wake_word": "打开灯光", "model_file": "dakaidengguang.onnx", "cons_frames": 3},
-    {"wake_word": "你好电脑", "model_file": "nihaodiannao.onnx", "cons_frames": 3}
+    {"wake_word": "打开灯光", "model_file": "dakaidengguang.onnx", "cons_frames": 2},
+    {"wake_word": "你好电脑", "model_file": "nihaodiannao.onnx", "cons_frames": 2}
   ]
 }
 ```
@@ -78,7 +78,7 @@
 onnx-wakeword/
 ├── android/     # Android (Java, ONNX Runtime)
 ├── web/         # Web (JavaScript, ONNX Runtime Web)
-├── linux/       # Linux / 树莓派 (Python)
+├── python/      # Linux / Windows / macOS (Python)
 ├── esp32/       # ESP32-S3/P4
 └── models/      # 测试用模型和配置（不提交 git）
 ```
@@ -89,7 +89,7 @@ onnx-wakeword/
 |------|------|------|
 | Android | `android/` | `WakeWordEngine.java` |
 | Web | `web/` | `wakeword.js` → `VoicuteWakeWord.create()` |
-| Linux | `linux/` | `wakeword_engine.py` → `WakeWordEngine()` |
+| Python | `python/` | `wakeword_engine.py` → `WakeWordEngine()` |
 
 ### Web
 
@@ -107,18 +107,25 @@ onnx-wakeword/
 </script>
 ```
 
-### Linux
+### Python (Linux / Windows / macOS)
 
 ```bash
-pip install onnxruntime numpy pyaudio
+pip install onnxruntime numpy sounddevice
 ```
 
-```python
+```bash
+# 快速麦克风测试
+python mic_test.py
+python mic_test.py --all     # L1-L5 全开
+
+# 代码调用
+python -c "
 from wakeword_engine import WakeWordEngine
 engine = WakeWordEngine()
-engine.load('model_info.json', 'melspectrogram.onnx')
+engine.load('models/model_info.json', 'models/melspectrogram.onnx')
 engine.set_L1(True)
 engine.start(lambda word, prob, info: print(f'{word}'))
+"
 ```
 
 ### Android

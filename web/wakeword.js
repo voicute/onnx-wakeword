@@ -30,27 +30,32 @@ window.VoicuteWakeWord = {
         let dscnnMode = false, dscnnMelTime = 98;
         let audioSamplesNeeded = 0;
 
-        // ---- Detection state ----
-        let cons = 0, consWord = '';
-        let lastTrig = 0, blocked = 0;
-        let bgEma = 0.001;
-        const PEAK_HIST = 128;
-        const pHist = new Float32Array(PEAK_HIST);
-        const tHist = new Float32Array(PEAK_HIST); let pHi = 0;
+        // ═══════════════════════════════════════════════
+        // DetectionLogic (matches Java DetectionLogic.java exactly)
+        // ═══════════════════════════════════════════════
+        const HIST = 128, PEAK_WIN = 1500, CD_MS = 1500, MAX_GAP = 2;
+        const BURST_WIN = 3000, BURST_N = 5, BURST_BLOCK = 3000, BH = 8;
+        const RMS_HIST = 128, PRE_WIN_START = 500, PRE_WIN_END = 2000;
+        const POST_DELAY = 700, POST_TAIL = 300, RETURN_RATIO = 2.5;
 
-        // Layer toggles
+        // Internal state
+        let cons = 0, consWord = '', consGap = 0;
+        let bg = 0.001, lastTrig = 0, blocked = 0;
+        const pHist = new Float32Array(HIST), tHist = new Array(HIST).fill(0); let pHi = 0;
+        const rmsHist = new Float32Array(RMS_HIST), rmsTHist = new Array(RMS_HIST).fill(0); let ri = 0;
+        // L5 pending
+        let pendingWord = null, pendingTime = 0, pendingProb = 0, pendingPreMin = 0;
+        // L4 burst
+        const bT = new Float32Array(BH), bW = new Array(BH), bP = new Float32Array(BH); let bi = 0;
+        // Layer toggles + config
         let L1 = true, L2 = false, L3 = false, L4 = false, L5 = false;
-        let l5ratio = 3.0;  // L5 energy jump ratio, adjustable (2.0-8.0)
-        let l5rms = 0;
-        const RMS_HIST = 128;
-        const rmsHist = new Float32Array(RMS_HIST);
-        const rmsTHist = new Array(RMS_HIST).fill(0); let l5ri = 0;
-        const bT = new Float32Array(8), bW = new Array(8); let bi = 0;
+        let l5ratio = 5.0;  // L5 energy jump ratio (matches Android default 5.0)
+        let _lastBlock = '';
 
         let _debugLog = false;
         const _log = (...a) => { if (_debugLog) console.log(...a); };
         const _warn = (...a) => { if (_debugLog) console.warn(...a); };
-        const debug = { sampleRate: 0, lastScores: {}, inferCount: 0, consCount: 0 };
+        const debug = { sampleRate: 0, lastScores: {}, inferCount: 0, consCount: 0, lastBlock: '', bg: 0 };
 
         // ---- Audio state ----
         let audioCtx = null, stream = null, listening = false;
@@ -148,81 +153,124 @@ window.VoicuteWakeWord = {
             logits[K] = 0;
             let sum = 0; const sm = new Array(K + 1);
             for (let i = 0; i <= K; i++) { sm[i] = Math.exp(logits[i] - maxL); sum += sm[i]; }
-            let bestS = -1, bestW = null, bestC = 5, all = {};
-            for (let i = 0; i < K; i++) { sm[i] /= sum; all[words[i]] = sm[i]; if (sm[i] > bestS) { bestS = sm[i]; bestW = words[i]; bestC = cfList[i]; } }
+            let bestS = -1, bestW = null, bestC = 5, bestSig = 0, all = {};
+            for (let i = 0; i < K; i++) { sm[i] /= sum; all[words[i]] = sm[i]; if (sm[i] > bestS) { bestS = sm[i]; bestW = words[i]; bestC = cfList[i]; bestSig = scores[i]; } }
             debug.lastScores = all;
-            return { word: bestW, prob: bestS, bg: sm[K] / sum, all, consFrames: bestC };
+            return { word: bestW, prob: bestS, sigmoid: bestSig, bg: sm[K] / sum, all, consFrames: bestC };
         }
 
         // ═══════════════════════════
         // Detection
         // ═══════════════════════════
 
-        function detect(word, prob, consFrames, threshold, cooldownMs, now) {
-            // Track peak history and background EMA for ALL frames (before early return)
-            // bgEma only updates on non-wake-word frames (matches Android: word==null → update)
-            pHist[pHi] = prob; tHist[pHi] = now; pHi = (pHi + 1) % PEAK_HIST;
-            if (!word || prob < threshold) bgEma = bgEma * 0.995 + prob * 0.005;
+        // ═══════════════════════════════════════════════
+        // record() — matches Java DetectionLogic.record()
+        // ═══════════════════════════════════════════════
+        function record(prob, word, rms, now) {
+            pHist[pHi] = prob; tHist[pHi] = now; pHi = (pHi + 1) % HIST;
+            if (!word) bg = bg * 0.995 + prob * 0.005;
+            rmsHist[ri] = rms; rmsTHist[ri] = now; ri = (ri + 1) % RMS_HIST;
+        }
 
-            if (!word || prob < threshold) { cons = 0; consWord = ''; return null; }
-            if (now < blocked) { cons = 0; consWord = ''; return null; }
-            debug.consCount = cons;
+        // ═══════════════════════════════════════════════
+        // evaluate() — matches Java DetectionLogic.evaluate()
+        // ═══════════════════════════════════════════════
+        let _frameN = 0, _lastProbAtPending = null;
+        function evaluate(word, prob, rms, threshold, consFrames, now) {
+            _frameN++;
+            _lastBlock = '';
+            let triggerWord = null, triggerProb = 0;
 
-            // L5: energy jump ratio
-            if (L5 && l5rms > 0) {
-                const ps = now - 2000, pe = now - 500;
-                let pMin = Infinity, pN = 0;
-                for (let i = 0; i < RMS_HIST; i++) {
-                    if (rmsTHist[i] > 0 && rmsTHist[i] >= ps && rmsTHist[i] <= pe) {
-                        if (rmsHist[i] < pMin) pMin = rmsHist[i]; pN++;
+            // L5b: post-speech confirmation
+            if (L5 && pendingWord != null) {
+                const elapsed = now - pendingTime;
+                if (elapsed >= POST_DELAY) {
+                    const tailStart = now - POST_TAIL;
+                    let postMin = Infinity, postN = 0;
+                    for (let i = 0; i < RMS_HIST; i++) {
+                        if (rmsTHist[i] > 0 && rmsTHist[i] >= tailStart && rmsTHist[i] <= now) {
+                            const v = rmsHist[i]; if (v < postMin) postMin = v; postN++;
+                        }
                     }
+                    if (postN >= 3 && postMin < pendingPreMin * RETURN_RATIO) {
+                        triggerWord = pendingWord; triggerProb = pendingProb;
+                    } else {
+                        console.log(`  L5b FAIL postMin=${postMin.toFixed(0)} need<${(pendingPreMin*RETURN_RATIO).toFixed(0)}`);
+                        _lastProbAtPending = null;
+                    }
+                    pendingWord = null;
                 }
-                const ratio = pN >= 5 ? l5rms / Math.max(pMin, 1) : -1;
-                let block = pN >= 5 && l5rms < pMin * l5ratio;
-                if (!block && pN >= 5 && pMin < 50 && l5rms < 80) block = true;
-                if (_debugLog && (debug.inferCount % 5 === 0 || block)) {
-                    _log(`[L5] rms=${l5rms.toFixed(0)} preMin=${pN>=5?pMin.toFixed(0):'?'} preN=${pN} ratio=${ratio>=0?ratio.toFixed(1):'?'} blocked=${block} word=${word} prob=${prob.toFixed(3)}`);
-                }
-                if (block) { cons = 0; consWord = ''; return null; }
             }
 
-            // L1: consecutive frames
-            if (L1) {
+            // L1-L5
+            if (triggerWord == null) {
                 const hi = prob > threshold && word;
-                if (hi && word === consWord) cons++; else if (hi) { consWord = word; cons = 1; } else { cons = 0; consWord = ''; }
-                if (cons < consFrames) return null;
-            }
-
-            // L2: peak/background ratio — matches Android DetectionLogic L2
-            if (L2) {
+                // L1: consecutive frames with gap tolerance
+                if (L1) {
+                    if (hi && word === consWord) { cons++; consGap = 0; }
+                    else if (hi) { consWord = word; cons = 1; consGap = 0; }
+                    else if (cons > 0) { consGap++; if (consGap > MAX_GAP) { cons = 0; consWord = ''; consGap = 0; } }
+                    if (cons < consFrames) { if (hi) console.log(`  L1 cons=${cons}/${consFrames}`); _lastBlock = 'L1'; return null; }
+                }
+                // L2: peak / background (peak is always computed, matches Android)
                 let peak = 0;
-                for (let i = 0; i < PEAK_HIST; i++) {
-                    if (tHist[i] > 0 && (now - tHist[i]) < 1500) {
-                        if (pHist[i] > peak) peak = pHist[i];
+                for (let i = 0; i < HIST; i++) {
+                    if (tHist[i] > 0 && (now - tHist[i]) < PEAK_WIN) {
+                        const p = pHist[i]; if (p > peak) peak = p;
                     }
                 }
-                if (peak <= bgEma * 3) { cons = 0; consWord = ''; return null; }
+                if (L2 && peak <= bg * 3) { console.log(`  L2 BLOCK peak=${peak.toFixed(3)} bg=${bg.toFixed(4)}`); _lastBlock = 'L2'; return null; }
+                // L3: cooldown
+                if (L3 && (now - lastTrig) < CD_MS) { console.log(`  L3 cooldown ${now-lastTrig}ms`); _lastBlock = 'L3'; return null; }
+                // L4a: burst cooldown
+                if (L4 && now < blocked) { console.log(`  L4 blocked ${blocked-now}ms`); _lastBlock = 'L4'; return null; }
+                // L5a: energy jump ratio
+                if (L5) {
+                    const preStart = now - PRE_WIN_END, preEnd = now - PRE_WIN_START;
+                    let preMin = Infinity, preN = 0;
+                    for (let i = 0; i < RMS_HIST; i++) {
+                        if (rmsTHist[i] > 0 && rmsTHist[i] >= preStart && rmsTHist[i] <= preEnd) {
+                            const v = rmsHist[i]; if (v < preMin) preMin = v; preN++;
+                        }
+                    }
+                    if (preN >= 5 && preMin < 50 && rms < 80) { console.log(`  L5 quiet-room rms=${rms.toFixed(0)} preMin=${preMin.toFixed(0)}`); _lastBlock = 'L5:quiet'; return null; }
+                    if (preN >= 5 && rms < preMin * l5ratio) { console.log(`  L5 no-jump rms=${rms.toFixed(0)} preMin=${preMin.toFixed(0)} need>${(preMin*l5ratio).toFixed(0)}`); _lastBlock = 'L5:ratio'; return null; }
+                    if (preN >= 5) {
+                        pendingWord = word; pendingTime = now; pendingProb = peak; pendingPreMin = preMin;
+                        _lastProbAtPending = prob;
+                        cons = 0; consWord = ''; _lastBlock = 'L5:pending'; return null;
+                    }
+                }
+                triggerWord = word; triggerProb = peak; _lastProbAtPending = null;
+                console.log(`[DETECT] direct trigger word=${word} prob=${prob.toFixed(3)} rms=${rms.toFixed(0)}`);
             }
 
-            // L3: cooldown
-            if (L3 && (now - lastTrig) < cooldownMs) { cons = 0; consWord = ''; return null; }
-
-            // L4: burst
-            if (L4) {
-                bT[bi] = now; bW[bi] = word; bi = (bi + 1) % 8;
-                let bc = 0; for (let i = 0; i < 8; i++) if (bT[i] > 0 && (now - bT[i]) < 3000 && word === bW[i]) bc++;
-                if (bc >= 3) { blocked = now + 5000; cons = 0; consWord = ''; return null; }
+            // L4 burst gate (final)
+            if (L4 && triggerWord != null) {
+                bT[bi] = now; bW[bi] = triggerWord; bP[bi] = triggerProb; bi = (bi + 1) % BH;
+                let bc = 0;
+                for (let i = 0; i < BH; i++) {
+                    if (bT[i] > 0 && (now - bT[i]) < BURST_WIN && triggerWord === bW[i] && bP[i] > 0.8) bc++;
+                }
+                if (bc >= BURST_N) {
+                    blocked = now + BURST_BLOCK; cons = 0; consWord = ''; _lastBlock = 'L4:burst'; return null;
+                }
             }
 
-            cons = 0; consWord = ''; lastTrig = now;
-            return word;
+            if (triggerWord != null) {
+                lastTrig = now; cons = 0; consWord = '';
+                return triggerWord;
+            }
+            return null;
         }
 
         function reset() {
-            cons = 0; consWord = ''; lastTrig = 0; blocked = 0; bgEma = 0.001;
-            for (let i = 0; i < PEAK_HIST; i++) { pHist[i] = 0; tHist[i] = 0; }
+            cons = 0; consWord = ''; consGap = 0; lastTrig = 0; blocked = 0; bg = 0.001;
+            pendingWord = null; pendingTime = 0; pendingProb = 0; pendingPreMin = 0;
+            _lastBlock = ''; _lastProbAtPending = null;
+            for (let i = 0; i < HIST; i++) { pHist[i] = 0; tHist[i] = 0; }
             for (let i = 0; i < RMS_HIST; i++) { rmsHist[i] = 0; rmsTHist[i] = 0; }
-            l5ri = 0; l5rms = 0;
+            ri = 0;
         }
 
         // ═══════════════════════════
@@ -267,9 +315,16 @@ window.VoicuteWakeWord = {
                     const rms = _rms(chunk);
                     const result = await predict(chunk);
                     if (!listening || !result) return;
-                    l5rms = rms; rmsHist[l5ri] = rms; rmsTHist[l5ri] = Date.now(); l5ri = (l5ri + 1) % RMS_HIST;
-                    const d = detect(result.word, result.prob, result.consFrames || 5, cfgThreshold, cfgCooldown, Date.now());
-                    if (d) onResult(d, result.prob, { bg: result.bg, all: result.all, rms });
+                    const now = Date.now();
+                    // record() — matches Android: sigmoid for L2, word only when above threshold
+                    const sig = result.sigmoid != null ? result.sigmoid : result.prob;
+                    const w = (result.prob > cfgThreshold) ? result.word : '';
+                    record(sig, w, rms, now);
+                    // evaluate() — matches Android DetectionLogic.evaluate()
+                    const d = evaluate(result.word, result.prob, rms, cfgThreshold, result.consFrames || 5, now);
+                    const dispProb = (d && _lastProbAtPending) ? _lastProbAtPending : result.prob;
+                    debug.lastBlock = _lastBlock; debug.bg = bg;
+                    if (d) onResult(d, dispProb, { bg: result.bg, all: result.all, rms, block: _lastBlock });
                 } catch (e) { _warn('[wakeword] error', e.message); }
                 finally { busy = false; run(); }
             }
@@ -297,7 +352,15 @@ window.VoicuteWakeWord = {
         // ═══════════════════════════
 
         return {
-            load, start, stop, predict, detect, reset,
+            load, start, stop, predict, reset,
+            // Public detect: record() + evaluate() matching Android API
+            detect: (word, prob, consFrames, threshold, cooldownMs, now, sigmoid) => {
+                const rms = 50;  // fallback RMS when called externally
+                const sig = (sigmoid != null) ? sigmoid : prob;
+                record(sig, (prob > threshold) ? word : '', rms, now || Date.now());
+                debug.lastBlock = _lastBlock; debug.bg = bg;
+                return evaluate(word, prob, rms, threshold, consFrames, now || Date.now());
+            },
             setThreshold: v => { cfgThreshold = Math.max(0.3, Math.min(0.95, v)); },
             setCooldown: v => { cfgCooldown = Math.max(500, v); },
             setDebug: v => _debugLog = v,
