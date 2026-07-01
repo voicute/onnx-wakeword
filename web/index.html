@@ -93,14 +93,14 @@
     <div style="margin-bottom:2px;font-size:14px;color:#e0e0e0;font-weight:600;">防误唤醒设置</div>
     <div style="margin-bottom:10px;font-size:11px;color:#ffd93d;">正式部署建议全部开启，测试时可单独关闭排查问题</div>
     <div style="font-size:13px;color:#ccc;line-height:2.2;">
-      <div><label><input type="checkbox" id="l1Check" checked> L1 连续3帧</label> <span style="color:#888">解决键盘敲击、椅子响等瞬态短噪声误触发</span></div>
+      <div><label><input type="checkbox" id="l1Check" checked> L1 连续帧</label> <span style="color:#888">解决键盘敲击、椅子响等瞬态短噪声误触发</span></div>
       <div><label><input type="checkbox" id="l2Check"> L2 峰值/背景2x</label> <span style="color:#888">解决安静环境下模型对微弱底噪的幻觉误触发</span></div>
       <div><label><input type="checkbox" id="l3Check"> L3 冷却1.5s</label> <span style="color:#888">解决一句话被重复识别多次的问题</span></div>
       <div><label><input type="checkbox" id="l4Check"> L4 爆发封锁</label> <span style="color:#888">解决音频回路或连续噪声导致的密集误触发</span></div>
       <div><label><input type="checkbox" id="l5Check"> L5 能量跳变</label> <span style="color:#888">解决视频/音乐等持续噪声</span>
         <span style="margin-left:8px;color:#888;">倍数:</span>
-        <input type="range" id="l5Ratio" min="20" max="80" value="50" style="width:80px;vertical-align:middle;">
-        <span id="l5RatioVal" style="color:#ffd93d;font-size:12px;">5.0x</span>
+        <input type="range" id="l5Ratio" min="20" max="80" value="30" style="width:80px;vertical-align:middle;">
+        <span id="l5RatioVal" style="color:#ffd93d;font-size:12px;">3.0x</span>
       </div>
     </div>
   </div>
@@ -127,7 +127,7 @@
 var s = document.getElementById('loadStatus');
 if (s) s.textContent = (typeof ort === 'undefined') ? 'ORT 加载失败!' : 'ORT OK';
 </script>
-<script src="wakeword.js?v=10"></script>
+<script src="wakeword.js?v=12"></script>
 <script>
 // ── Remote logging to PC ──
 window.remoteLog = function(msg) {
@@ -176,7 +176,7 @@ l5Ratio.oninput = () => {
     engine = VoicuteWakeWord.create();
     logStatus('加载模型配置...');
     await engine.load(
-      'models/manbo_v9.2_basic.zip',
+      'models/manbo_v9.3_voice.zip',
       'models/melspectrogram.onnx'
     );
     const models = engine.getModels();

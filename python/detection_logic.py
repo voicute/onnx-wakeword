@@ -12,7 +12,7 @@ import numpy as np
 
 
 class DetectionLogic:
-    def __init__(self, thr=0.5, cons_frames=5, jump_ratio=5.0):
+    def __init__(self, thr=0.5, cons_frames=5, jump_ratio=3.0):
         self.thr, self.cons_frames, self.jump_ratio = thr, cons_frames, jump_ratio
         self.HIST, self.RMS_HIST = 128, 128
         self.PEAK_WIN, self.CD_MS = 1500, 1500
@@ -59,6 +59,7 @@ class DetectionLogic:
         # L1-L5
         if trigger_word is None:
             hi = prob > self.thr and bool(word)
+            if not hi: self.cons, self.cons_word, self.cons_gap = 0, '', 0; return None  # threshold gate, always active
             if self.l1:
                 if hi and word == self.cons_word: self.cons += 1; self.cons_gap = 0
                 elif hi: self.cons_word = word; self.cons = 1; self.cons_gap = 0

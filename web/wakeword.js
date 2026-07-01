@@ -49,7 +49,7 @@ window.VoicuteWakeWord = {
         const bT = new Float32Array(BH), bW = new Array(BH), bP = new Float32Array(BH); let bi = 0;
         // Layer toggles + config
         let L1 = true, L2 = false, L3 = false, L4 = false, L5 = false;
-        let l5ratio = 5.0;  // L5 energy jump ratio (matches Android default 5.0)
+        let l5ratio = 3.0;  // L5 energy jump ratio
         let _lastBlock = '';
 
         let _debugLog = false;
@@ -205,6 +205,7 @@ window.VoicuteWakeWord = {
             // L1-L5
             if (triggerWord == null) {
                 const hi = prob > threshold && word;
+                if (!hi) { cons = 0; consWord = ''; return null; }  // threshold gate, always active
                 // L1: consecutive frames with gap tolerance
                 if (L1) {
                     if (hi && word === consWord) { cons++; consGap = 0; }
@@ -361,7 +362,7 @@ window.VoicuteWakeWord = {
                 debug.lastBlock = _lastBlock; debug.bg = bg;
                 return evaluate(word, prob, rms, threshold, consFrames, now || Date.now());
             },
-            setThreshold: v => { cfgThreshold = Math.max(0.3, Math.min(0.95, v)); },
+            setThreshold: v => { cfgThreshold = Math.max(0.25, Math.min(0.95, v)); },
             setCooldown: v => { cfgCooldown = Math.max(500, v); },
             setDebug: v => _debugLog = v,
             setL1: v => L1 = v, setL2: v => L2 = v, setL3: v => L3 = v, setL4: v => L4 = v, setL5: v => L5 = v,
