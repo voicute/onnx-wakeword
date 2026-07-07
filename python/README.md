@@ -19,7 +19,7 @@ engine.load('models/model_info.json', 'models/melspectrogram.onnx')
 # 配置检测层
 engine.set_L1(True)       # 连续帧过滤
 engine.set_L5(True)       # 能量跳变
-engine.set_L5_ratio(3.0)  # L5 倍数
+engine.set_L5_delta(1200)   # L5 增量 (curRms > preMin + delta)
 
 # 实时监听
 engine.start(lambda word, prob, info: print(f'检测到: {word} ({prob:.0%})'))
