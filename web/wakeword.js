@@ -49,13 +49,13 @@ window.VoicuteWakeWord = {
         const bT = new Float32Array(BH), bW = new Array(BH), bP = new Float32Array(BH); let bi = 0;
         // Layer toggles + config
         let L1 = true, L2 = false, L3 = false, L4 = false, L5 = false;
-        let l5ratio = 3.0;  // L5 energy jump ratio
+        let l5delta = 60;  // L5 energy delta: curRms > preMin + l5delta
         let _lastBlock = '';
 
         let _debugLog = false;
         const _log = (...a) => { if (_debugLog) console.log(...a); };
         const _warn = (...a) => { if (_debugLog) console.warn(...a); };
-        const debug = { sampleRate: 0, lastScores: {}, inferCount: 0, consCount: 0, lastBlock: '', bg: 0 };
+        const debug = { sampleRate: 0, lastScores: {}, inferCount: 0, consCount: 0, lastBlock: '', bg: 0, lastRms: 0 };
 
         // ---- Audio state ----
         let audioCtx = null, stream = null, listening = false;
@@ -234,8 +234,9 @@ window.VoicuteWakeWord = {
                             const v = rmsHist[i]; if (v < preMin) preMin = v; preN++;
                         }
                     }
-                    if (preN >= 5 && preMin < 50 && rms < 80) { console.log(`  L5 quiet-room rms=${rms.toFixed(0)} preMin=${preMin.toFixed(0)}`); _lastBlock = 'L5:quiet'; return null; }
-                    if (preN >= 5 && rms < preMin * l5ratio) { console.log(`  L5 no-jump rms=${rms.toFixed(0)} preMin=${preMin.toFixed(0)} need>${(preMin*l5ratio).toFixed(0)}`); _lastBlock = 'L5:ratio'; return null; }
+                    if (preN >= 5 && preMin < 50 && rms < 80) { console.log(`  L5 BLOCK quiet: rms=${rms.toFixed(0)} preMin=${preMin.toFixed(0)}`); _lastBlock = 'L5:quiet'; return null; }
+                    if (preN >= 5 && rms < preMin + l5delta) { console.log(`  L5 BLOCK delta: rms=${rms.toFixed(0)} preMin=${preMin.toFixed(0)} need>${(preMin+l5delta).toFixed(0)}`); _lastBlock = 'L5:delta'; return null; }
+                    if (preN >= 5) { console.log(`  L5 JUMP rms=${rms.toFixed(0)} preMin=${preMin.toFixed(0)} delta=${l5delta}`); }
                     if (preN >= 5) {
                         pendingWord = word; pendingTime = now; pendingProb = peak; pendingPreMin = preMin;
                         _lastProbAtPending = prob;
@@ -324,7 +325,7 @@ window.VoicuteWakeWord = {
                     // evaluate() — matches Android DetectionLogic.evaluate()
                     const d = evaluate(result.word, result.prob, rms, cfgThreshold, result.consFrames || 5, now);
                     const dispProb = (d && _lastProbAtPending) ? _lastProbAtPending : result.prob;
-                    debug.lastBlock = _lastBlock; debug.bg = bg;
+                    debug.lastBlock = _lastBlock; debug.bg = bg; debug.lastRms = rms;
                     if (d) onResult(d, dispProb, { bg: result.bg, all: result.all, rms, block: _lastBlock });
                 } catch (e) { _warn('[wakeword] error', e.message); }
                 finally { busy = false; run(); }
@@ -366,7 +367,7 @@ window.VoicuteWakeWord = {
             setCooldown: v => { cfgCooldown = Math.max(500, v); },
             setDebug: v => _debugLog = v,
             setL1: v => L1 = v, setL2: v => L2 = v, setL3: v => L3 = v, setL4: v => L4 = v, setL5: v => L5 = v,
-            setL5Ratio: v => l5ratio = Math.max(2.0, Math.min(8.0, v)),
+            setL5Delta: v => l5delta = Math.max(1, Math.min(300, v)),
             isLoaded: () => !!melSession && models.length > 0,
             getModels: () => models.map(m => ({ name: m.name, consFrames: m.consFrames })),
             debug,

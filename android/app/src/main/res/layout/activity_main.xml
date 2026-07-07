@@ -143,7 +143,7 @@
                 android:id="@+id/l5CheckBox"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:checked="true"
+                android:checked="false"
                 android:buttonTint="#16c79a" />
         </LinearLayout>
 
@@ -155,7 +155,7 @@
             android:textColor="#888899"
             android:layout_marginTop="2dp" />
 
-        <!-- L5 jump ratio slider -->
+        <!-- L5 energy delta slider -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -166,7 +166,7 @@
             <TextView
                 android:layout_width="36dp"
                 android:layout_height="wrap_content"
-                android:text="灵敏度"
+                android:text="增量"
                 android:textSize="10sp"
                 android:textColor="#888899" />
 
@@ -176,15 +176,15 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:max="30"
-                android:progress="10"
+                android:progress="11"
                 android:layout_marginStart="4dp"
                 android:layout_marginEnd="4dp" />
 
             <TextView
                 android:id="@+id/l5RatioText"
-                android:layout_width="36dp"
+                android:layout_width="42dp"
                 android:layout_height="wrap_content"
-                android:text="3.0x"
+                android:text="+1200"
                 android:textSize="10sp"
                 android:textColor="#ffd93d"
                 android:gravity="end" />
@@ -193,9 +193,9 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="低=远场轻声也触发 | 高=近处大声才触发"
+            android:text="💡 看上方 RMS 值: 安静记数→ 说话看峰值 → 增量≈峰值×70%"
             android:textSize="9sp"
-            android:textColor="#444455"
+            android:textColor="#666677"
             android:layout_marginTop="1dp" />
     </LinearLayout>
 

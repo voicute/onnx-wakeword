@@ -57,7 +57,7 @@ class DetectionLogic {
     private static final long PRE_WIN_END = 2000;
     private static final long POST_DELAY = 700;       // wait for keyword tail to decay
     private static final long POST_TAIL = 300;        // check last 300ms of post window
-    float jumpRatio = 5.0f;     // curRms/preMin > this → energy burst (was 3.0, raised for music)
+    int l5Delta = 1200;          // L5 energy delta: curRms > preMin + l5Delta
     private static final float RETURN_RATIO = 2.5f;   // postMin/preMin < 2.5 → went quiet
 
     // L5 pending
@@ -67,7 +67,7 @@ class DetectionLogic {
     private float pendingPreMin;  // preMin at detection time (for post comparison)
 
     // L5 toggle
-    boolean l5Enabled = true;
+    boolean l5Enabled = false;  // off by default, user enables after testing RMS
 
     // output (package-private)
     int count;
@@ -174,12 +174,12 @@ class DetectionLogic {
                             rms, preMin));
                     return null;
                 }
-                if (preN >= 5 && rms < preMin * jumpRatio) {
+                if (preN >= 5 && rms < preMin + l5Delta) {
                     // No dramatic energy jump → steady noise (video/music)
                     dbgFail = 5;
                     Log.d(TAG, String.format(Locale.US,
-                            "L5 pre: curRms=%.0f preMin=%.0f ratio=%.1f < %.1f → steady noise",
-                            rms, preMin, rms / Math.max(preMin, 1), jumpRatio));
+                            "L5 pre: curRms=%.0f preMin=%.0f delta=%d need>%.0f → steady noise",
+                            rms, preMin, l5Delta, preMin + l5Delta));
                     return null;
                 }
                 // preN < 5: insufficient RMS history → skip L5, fall through to trigger

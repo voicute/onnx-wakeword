@@ -127,19 +127,18 @@ public class MainActivity extends AppCompatActivity implements AudioCapture.List
             saveAudio = isChecked;
         });
 
-        // L5 jump ratio slider: 2.0x ~ 5.0x (default 3.0x)
-        // Lower = easier to trigger (far-field), higher = stricter (close-range)
+        // L5 delta slider: 100 ~ 3100 (default 1200)
         l5RatioSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar s, int p, boolean fromUser) {
-                float ratio = 2.0f + p * 0.1f;  // 0-30 → 2.0-5.0
-                l5RatioText.setText(String.format(Locale.US, "%.1fx", ratio));
-                if (detection != null) detection.jumpRatio = ratio;
+                int delta = 100 + p * 100;  // 0-30 → 100-3100
+                l5RatioText.setText(String.format(Locale.US, "+%d", delta));
+                if (detection != null) detection.l5Delta = delta;
             }
             @Override public void onStartTrackingTouch(SeekBar s) {}
             @Override public void onStopTrackingTouch(SeekBar s) {}
         });
-        // Init slider to default 3.0x (progress=10)
-        l5RatioSeekBar.setProgress(10);
+        // Init slider to default 1200 (progress=11)
+        l5RatioSeekBar.setProgress(11);
 
         toggleButton.setOnClickListener(v -> {
             if (running) stopListening(); else startListening();
@@ -378,9 +377,10 @@ public class MainActivity extends AppCompatActivity implements AudioCapture.List
                 lastUiUpdate = t1;
                 mainHandler.post(() -> {
                     scoreText.setText(String.format(Locale.US,
-                            "word:%s prob:%.1f%% cons:%d/%d %dms",
-                            latestWord, latestProb * 100,
-                            detection.consFrames, detection.baseCons, lastInferMs));
+                            "word:%s prob:%.1f%% rms:%.0f L5:%s %dms",
+                            latestWord, latestProb * 100, chunkRms,
+                            detection.l5Enabled ? ("+" + detection.l5Delta) : "off",
+                            lastInferMs));
                 });
             }
 

@@ -6,14 +6,15 @@ L3: 1.5s cooldown                        → prevents double-trigger
 L4: burst 3×/3s → suppress 5s            → blocks playback loops
 L5: energy jump ratio                    → blocks video/music
 
-Configurable: cons_frames, threshold, jump_ratio, per-layer toggles
+Configurable: cons_frames, threshold, l5_delta, per-layer toggles
 """
 import numpy as np
 
 
 class DetectionLogic:
-    def __init__(self, thr=0.5, cons_frames=5, jump_ratio=3.0):
-        self.thr, self.cons_frames, self.jump_ratio = thr, cons_frames, jump_ratio
+    def __init__(self, thr=0.5, cons_frames=5):
+        self.thr, self.cons_frames = thr, cons_frames
+        self.l5_delta = 1200        # L5 energy delta: curRms > preMin + l5_delta
         self.HIST, self.RMS_HIST = 128, 128
         self.PEAK_WIN, self.CD_MS = 1500, 1500
         self.BURST_WIN, self.BURST_N, self.BURST_BLOCK, self.BH = 3000, 3, 5000, 8
@@ -84,7 +85,7 @@ class DetectionLogic:
                     if pre_start <= self.rms_t[i] <= pre_end:
                         pre_min = min(pre_min, self.rms_hist[i]); pre_n += 1
                 if pre_n >= 5 and pre_min < 50 and rms < 80: return None
-                if pre_n >= 5 and rms < pre_min * self.jump_ratio: return None
+                if pre_n >= 5 and rms < pre_min + self.l5_delta: return None
                 if pre_n >= 5:
                     self.pending_word = word; self.pending_time = now_ms
                     self.pending_prob = prob; self.pending_pre_min = pre_min

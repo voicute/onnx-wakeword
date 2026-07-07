@@ -27,7 +27,7 @@ def main():
     p.add_argument('--l3', type=int, default=None)
     p.add_argument('--l4', type=int, default=None)
     p.add_argument('--l5', type=int, default=None)
-    p.add_argument('--l5ratio', type=float, default=5.0)
+    p.add_argument('--l5-delta', type=int, default=1200, help='L5 delta: curRms > preMin + delta')
     p.add_argument('--list-devices', action='store_true')
     args = p.parse_args()
 
@@ -64,11 +64,11 @@ def main():
     dl = DetectionLogic(thr=args.thr, cons_frames=args.cons)
     dl.l1, dl.l2, dl.l3, dl.l4, dl.l5 = bool(l1), bool(l2), bool(l3), bool(l4), bool(l5)
     if l5:
-        dl.jump_ratio = args.l5ratio
+        dl.l5_delta = args.l5_delta
 
     layers = ''.join([f'L{i+1}' for i, v in enumerate([l1,l2,l3,l4,l5]) if v])
     print(f'Model: {model_path}')
-    print(f'Layers: {layers}  thr={args.thr}  cons={args.cons}  l5ratio={dl.jump_ratio}')
+    print(f'Layers: {layers}  thr={args.thr}  cons={args.cons}  L5={dl.l5_delta}')
     print(f'Say the wake word... (Ctrl+C to stop)')
     print()
 
