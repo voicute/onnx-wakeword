@@ -1,0 +1,4 @@
+dependencies:
+  espressif/esp-tflite-micro: 1.3.5    # TFLite runtime
+  espressif/esp-dsp: ^1.4.0            # RFFT for mel extraction
+# espressif/esp-nn: ^1.1.0             # OFF - test model first
