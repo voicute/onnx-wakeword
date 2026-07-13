@@ -23,8 +23,6 @@ typedef struct {
     int   l1_enabled, l2_enabled, l3_enabled, l4_enabled, l5_enabled;
     float l5_delta;
     kws_postprocess_fn postprocess;  // model-specific head (required)
-    const uint8_t *compiled_model;   // optional: embedded model data
-    size_t          compiled_len;    // optional: embedded model length
 } recognizer_config_t;
 
 // Init model + detection state (no ring buffer needed)
@@ -36,8 +34,14 @@ void recognizer_register_callback(int idx, voice_event_callback_t cb, void *user
 // now_ms: current time in ms (for L1-L5 detection pipeline)
 void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms);
 
-// Feed RMS to detection pipeline without running inference (for COMMAND mode)
+// Feed RMS to detection pipeline without running inference
 void recognizer_feed_rms(float rms, int64_t now_ms);
+
+// Get last prob for model[0] (for miss detection diagnostics)
+float recognizer_get_last_prob(void);
+
+// Check L5b pending without running inference (for silence frames)
+void recognizer_evaluate_silence(float rms, int64_t now_ms);
 
 #ifdef __cplusplus
 }

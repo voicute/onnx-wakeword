@@ -19,7 +19,7 @@ static const char *TAG = "DetectLogic";
 void dl_init(dl_state_t *s) {
     memset(s, 0, sizeof(*s));
     s->bg          = 0.001f;
-    s->cons_frames = 5;         // matches Java modelCons=5
+    s->cons_frames = 2;         // ESP32 tuned: 2 frames @ ~310ms ≈ 620ms window
     s->base_cons   = 5;
     s->l5_delta    = L5_DELTA;
     // All layers enabled by default
@@ -72,9 +72,12 @@ const char *dl_evaluate(dl_state_t *s, const char *word, float prob,
     float trigger_prob = 0;
     s->dbg_fail = 0;
 
-    // ── L5b: post-speech check (runs FIRST, before L1-L3) ──
+    // ── L5b: post-speech silence check (runs FIRST) ──
     if (s->l5_enabled && s->pending_word[0] != '\0') {
-        if ((now_ms - s->pending_time) >= POST_DELAY) {
+        int64_t elapsed = now_ms - s->pending_time;
+        ESP_LOGI(TAG, "L5b: pending='%s' elapsed=%lld/%d ms",
+                 s->pending_word, (long long)elapsed, POST_DELAY);
+        if (elapsed >= POST_DELAY) {
             int64_t tail_start = now_ms - POST_TAIL;
             float post_min = 1e38f; int post_n = 0;
             for (int i = 0; i < RMS_HIST; i++) {
@@ -84,39 +87,36 @@ const char *dl_evaluate(dl_state_t *s, const char *word, float prob,
                     post_n++;
                 }
             }
+            ESP_LOGI(TAG, "L5b tail: post_n=%d postMin=%.0f preMin=%.0f ratio=%.1f (need<%d,<%.0f)",
+                     post_n, (double)post_min, (double)s->pending_pre_min,
+                     (double)(post_min / (s->pending_pre_min > 0 ? s->pending_pre_min : 1)),
+                     3, (double)(s->pending_pre_min * RETURN_RATIO));
             if (post_n >= 3 && post_min < s->pending_pre_min * RETURN_RATIO
                 && s->pending_word[0] != '\0') {
-                // Copy to struct field, then clear pending (trigger_buf survives)
                 strncpy(s->trigger_buf, s->pending_word, sizeof(s->trigger_buf) - 1);
                 s->trigger_buf[sizeof(s->trigger_buf) - 1] = '\0';
                 trigger_word = s->trigger_buf;
                 trigger_prob = s->pending_prob;
-                s->pending_word[0] = '\0';
-                s->pending_time = 0;
-                ESP_LOGI(TAG, "L5 OK: preMin=%.0f postMin=%.0f ratio=%.1f -> trigger '%s'",
-                         (double)s->pending_pre_min, (double)post_min,
-                         (double)(post_min / s->pending_pre_min), s->trigger_buf);
-            } else if (post_n >= 3) {
-                ESP_LOGI(TAG, "L5 post block: preMin=%.0f postMin=%.0f ratio=%.1f -> continuous",
-                         (double)s->pending_pre_min, (double)post_min,
-                         (double)(post_min / s->pending_pre_min));
-                s->dbg_fail = 5;
+                ESP_LOGI(TAG, "L5 OK: -> '%s'", s->trigger_buf);
+            } else {
+                ESP_LOGI(TAG, "L5 fail: post_n=%d ratio=%.1f",
+                         post_n, (double)(post_min / (s->pending_pre_min > 0 ? s->pending_pre_min : 1)));
             }
-            // Clear pending regardless of outcome
             s->pending_word[0] = '\0';
             s->pending_time = 0;
         }
     }
 
-    // ── L1-L5a: normal pipeline (skipped if L5b already confirmed above) ──
+    // ── L1-L5a: normal pipeline ──
     if (trigger_word == NULL) {
         // Threshold gate — always active (matches Python L62-63)
         int hi = (prob > threshold && word && word[0] != '\0');
         if (!hi) {
             s->cons = 0; s->cons_word[0] = '\0'; s->cons_gap = 0;
-            s->dbg_fail = 0;
             return NULL;
         }
+        ESP_LOGI(TAG, "THR pass: prob=%.3f > thr=%.2f word='%s'",
+                 (double)prob, (double)threshold, word);
 
         // L1: consecutive frames (off → bypass, need=1)
         if (s->l1_enabled) {
@@ -137,7 +137,7 @@ const char *dl_evaluate(dl_state_t *s, const char *word, float prob,
                 }
             }
             s->cons_frames_dbg = s->cons;
-            if (s->cons < need) { s->dbg_fail = 1; goto done; }
+            if (s->cons < need) { ESP_LOGI(TAG, "L1 fail: cons=%d/%d", s->cons, need); s->dbg_fail = 1; goto done; }
         } else {
             s->cons_frames_dbg = 1;
         }
@@ -153,7 +153,10 @@ const char *dl_evaluate(dl_state_t *s, const char *word, float prob,
             }
             s->dbg_peak = peak;
             s->dbg_bg   = s->bg;
-            if (peak <= s->bg * PEAK_RATIO) { s->dbg_fail = 2; goto done; }
+            if (peak <= s->bg * PEAK_RATIO) {
+                ESP_LOGI(TAG, "L2 fail: peak=%.3f bg=%.3f ratio=%.1f", (double)peak, (double)s->bg, (double)(peak/(s->bg+1e-9f)));
+                s->dbg_fail = 2; goto done;
+            }
         } else {
             s->dbg_peak = prob;
             s->dbg_bg   = s->bg;
@@ -161,15 +164,21 @@ const char *dl_evaluate(dl_state_t *s, const char *word, float prob,
 
         // L3: cooldown (off → bypass)
         if (s->l3_enabled) {
-            if ((now_ms - s->last_trig) < CD_MS) { s->dbg_fail = 3; goto done; }
+            if ((now_ms - s->last_trig) < CD_MS) {
+                ESP_LOGI(TAG, "L3 fail: cooldown %lld/%d ms", (long long)(now_ms - s->last_trig), CD_MS);
+                s->dbg_fail = 3; goto done;
+            }
         }
 
         // L4a: burst cooldown (off → bypass)
         if (s->l4_enabled) {
-            if (now_ms < s->blocked) { s->cons = 0; s->cons_word[0] = '\0'; s->dbg_fail = 4; goto done; }
+            if (now_ms < s->blocked) {
+                ESP_LOGI(TAG, "L4 fail: blocked for %lld ms", (long long)(s->blocked - now_ms));
+                s->cons = 0; s->cons_word[0] = '\0'; s->dbg_fail = 4; goto done;
+            }
         }
 
-        // L5a: energy jump ratio (off → bypass, fall through to trigger)
+        // L5: energy jump + post-speech silence (ESP32: quick RMS provides dense tail data)
         if (s->l5_enabled) {
             int64_t pre_start = now_ms - PRE_WIN_END;
             int64_t pre_end   = now_ms - PRE_WIN_START;
@@ -184,34 +193,26 @@ const char *dl_evaluate(dl_state_t *s, const char *word, float prob,
             }
             s->dbg_pre_rms = (pre_n > 0) ? pre_min : -1.0f;
 
-            // Quiet-room guard
-            if (pre_n >= 5 && pre_min < L5_QUIET_RMS && rms < L5_MIN_RMS) {
-                ESP_LOGI(TAG, "L5 quiet: curRms=%.0f preMin=%.0f -> too quiet",
-                         (double)rms, (double)pre_min);
-                s->dbg_fail = 5; goto done;
-            }
-            // Steady noise check (additive delta, matches Python)
-            if (pre_n >= 5 && rms < pre_min + s->l5_delta) {
-                ESP_LOGI(TAG, "L5 steady: curRms=%.0f preMin=%.0f + delta=%.0f = %.0f > curRms -> block",
-                         (double)rms, (double)pre_min, (double)s->l5_delta,
-                         (double)(pre_min + s->l5_delta));
-                s->dbg_fail = 5; goto done;
-            }
-            // preN < 5: insufficient history → skip L5, fall through to trigger
-            if (pre_n < 5) {
-                s->dbg_pre_rms = -1.0f;
-                ESP_LOGW(TAG, "L5 SKIP: pre_n=%d (<5) → bypass L5, fall through to trigger!", pre_n);
-            } else {
-                // Energy jump → set pending, wait for post-speech confirmation
-                ESP_LOGI(TAG, "L5 JUMP: curRms=%.0f > preMin=%.0f + delta=%.0f → pending",
+            if (pre_n >= 5) {
+                if (pre_min < L5_QUIET_RMS && rms < L5_MIN_RMS) {
+                    ESP_LOGI(TAG, "L5 quiet: curRms=%.0f preMin=%.0f", (double)rms, (double)pre_min);
+                    s->dbg_fail = 5; goto done;
+                }
+                if (rms < pre_min + s->l5_delta) {
+                    ESP_LOGI(TAG, "L5 steady: curRms=%.0f preMin=%.0f + delta=%.0f",
+                             (double)rms, (double)pre_min, (double)s->l5_delta);
+                    s->dbg_fail = 5; goto done;
+                }
+                // Energy jump → defer to L5b for post-speech confirmation
+                ESP_LOGI(TAG, "L5 JUMP: curRms=%.0f > preMin=%.0f + %.0f → pending",
                          (double)rms, (double)pre_min, (double)s->l5_delta);
                 strncpy(s->pending_word, word, sizeof(s->pending_word) - 1);
                 s->pending_time    = now_ms;
-                s->pending_prob    = prob;            // matches Python: pending_prob = prob
+                s->pending_prob    = prob;
                 s->pending_pre_min = pre_min;
                 s->cons = 0;
                 s->cons_word[0] = '\0';
-                s->dbg_fail = 0;  // not a failure, just deferred
+                s->dbg_fail = 0;
                 goto done;
             }
         }

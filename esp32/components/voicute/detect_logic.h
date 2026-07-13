@@ -47,8 +47,8 @@ extern "C" {
 #define RMS_HIST      128
 #define PRE_WIN_START 500      // ms before now
 #define PRE_WIN_END   2000     // ms before now
-#define POST_DELAY    700      // wait for keyword tail to decay
-#define POST_TAIL     300      // check last 300ms after POST_DELAY
+#define POST_DELAY    400      // wait for keyword tail to decay (ESP32 tuned)
+#define POST_TAIL     1000      // check last 1000ms after POST_DELAY (ESP32 slow rate)
 #define RETURN_RATIO  2.5f     // postMin/preMin < 2.5 → went quiet
 #define L5_DELTA      1200.0f  // curRms > preMin + delta → energy burst (additive, matches Python)
 #define L5_QUIET_RMS  50.0f    // below this RMS, room is too quiet for L5 ratio
@@ -63,7 +63,7 @@ typedef struct {
     int   cons;
     char  cons_word[64];
     int   cons_gap;
-    int   cons_frames;         // default 5 (matches Java modelCons)
+    int   cons_frames;         // default 2 (ESP32 tuned: 5 too strict for ~360ms inference)
 
     // L2: prob history for sliding window peak
     float prob_hist[PROB_HIST];

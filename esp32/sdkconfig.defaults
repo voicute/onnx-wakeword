@@ -1,0 +1,18 @@
+# ── 分区表 ──
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_OFFSET=0x8000
+
+# ── esp-sr: 中文语音命令 (MultiNet5 量化版) ──
+# 如果不需要语音命令功能, 可以删除以下配置并移除 main.cpp 中的 MultiNet 代码
+CONFIG_SR_MN_CN_MULTINET5_RECOGNITION_QUANT8=y
+CONFIG_SR_MN_EN_NONE=y
+CONFIG_AFE_INTERFACE_V1=y
+
+# ── 中文语音命令定义 ──
+# 通过拼音定义命令词, MultiNet 原生支持
+CONFIG_CN_SPEECH_COMMAND_ID0="deng guang bian cheng hong se"
+CONFIG_CN_SPEECH_COMMAND_ID1="deng guang bian cheng lan se"
+CONFIG_CN_SPEECH_COMMAND_ID2="deng guang bian cheng lv se"
+CONFIG_CN_SPEECH_COMMAND_ID3="deng guang bian cheng bai se"

@@ -1,5 +1,5 @@
 /*
- * kws_postprocess.h — ESP32 float post-processing for the INT8 backbone.
+ * kws_postprocess.h — ESP32 float post-processing for INT8 KWS backbone.
  *
  * Plan B: the Causal DS-TCN backbone runs as INT8 tflite (esp-nn accelerated).
  * The tiny MultiProto head (325 params) runs here in float — it uses L2-normalize
@@ -19,8 +19,8 @@
 #pragma once
 #include <math.h>
 #include <stdint.h>
-#include "head.h"   /* KWS_HEAD_K, KWS_HEAD_D, KWS_ABS_TEMP,
-                             KWS_FC_B, KWS_FC_W[K], KWS_PROTO_NORM[K][D] */
+// head.h must be included BEFORE this file (see main.cpp)
+// Defines: KWS_HEAD_K, KWS_HEAD_D, KWS_ABS_TEMP, KWS_FC_B, KWS_FC_W, KWS_PROTO_NORM
 
 /* Reproduces the PyTorch MultiProto head EXACTLY (verified bit-identical). */
 static inline float kws_postprocess(const int8_t *out_int8,
@@ -57,7 +57,7 @@ static inline float kws_postprocess(const int8_t *out_int8,
 
 /* Helper: quantize a float mel[98*32] into int8 for the backbone input.
  * Read in_scale / in_zero from interpreter->input(0)->params at runtime. */
-static inline void kws_quantize_mel(const float *mel_f32, int8_t *mel_i8,
+static inline void manbo_kws_quantize_mel(const float *mel_f32, int8_t *mel_i8,
                                           int n, float in_scale, int in_zero)
 {
     for (int i = 0; i < n; i++) {

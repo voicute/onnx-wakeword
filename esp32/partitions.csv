@@ -1,0 +1,6 @@
+# Name,   Type, SubType, Offset,   Size, Flags
+# 注意: 如果修改了 bootloader 大小, 请同步调整偏移量
+nvs,      data, nvs,     0x9000,  0x6000,
+factory,  0,    0,       0x10000, 3M,
+model,    data, spiffs,  ,        5900K,
+models,   data, spiffs,  ,        1M,

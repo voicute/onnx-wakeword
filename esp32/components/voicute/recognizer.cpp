@@ -36,8 +36,7 @@ void recognizer_start(const recognizer_config_t *cfg) {
     R(Reshape); R(Transpose); R(Slice); R(Sum); R(Concatenation);
     #undef R
 
-    model_loader_init(&g_registry, cfg->model_path, &resolver,
-                       cfg->compiled_model, cfg->compiled_len);
+    model_loader_init(&g_registry, cfg->model_path, &resolver, NULL, 0);
     mel_extractor_init();
 
     if (g_registry.num_models == 0) {
@@ -65,8 +64,18 @@ void recognizer_start(const recognizer_config_t *cfg) {
 }
 
 void recognizer_stop(void) {}
+static float g_last_prob = 0.0f;
+float recognizer_get_last_prob(void) { return g_last_prob; }
+
 void recognizer_feed_rms(float rms, int64_t now_ms) {
     // Update RMS history for L5 detection (no inference)
+    for (int i = 0; i < g_registry.num_models; i++)
+        dl_record(&g_dl[i], 0.0f, "", rms, now_ms);
+}
+
+void recognizer_evaluate_silence(float rms, int64_t now_ms) {
+    // Only record RMS for L5 history (matches Python: record() always runs)
+    // evaluate() runs in recognizer_run_frame (inference frames handle L5b)
     for (int i = 0; i < g_registry.num_models; i++)
         dl_record(&g_dl[i], 0.0f, "", rms, now_ms);
 }
@@ -123,22 +132,41 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms) {
             prob = model->output_tensor->data.f[0];  // float fallback
         }
 
+        // Store for miss detection diagnostics
+        g_last_prob = prob;
+
+        // ── Posterior smoothing: max over last N frames ──
+        // Model uses multi-scale pooling biased toward window END.
+        // Word at wrong position → single-frame prob can drop to 0.
+        // Smoothing catches the "sweet spot" frame within ~1.5s window.
+        #define SMOOTH_N 5
+        static float prob_hist[MAX_WAKE_WORDS][SMOOTH_N] = {{0}};
+        static int   prob_idx[MAX_WAKE_WORDS] = {0};
+        prob_hist[m][prob_idx[m] % SMOOTH_N] = prob;
+        prob_idx[m]++;
+        float prob_smooth = prob;
+        if (prob_idx[m] >= SMOOTH_N) {
+            prob_smooth = prob_hist[m][0];
+            for (int i = 1; i < SMOOTH_N; i++)
+                if (prob_hist[m][i] > prob_smooth) prob_smooth = prob_hist[m][i];
+        }
+
         // ── L1-L5 Detection Pipeline ──
         float thr = g_cfg.threshold > 0 ? g_cfg.threshold : model->threshold;
 
-        // Pass empty word for bg frames so EMA updates; pass wake_word only for candidates
-        const char *word = (prob > thr) ? model->wake_word : "";
+        // Pass empty word for bg frames; wake_word only for candidates
+        const char *word = (prob_smooth > thr) ? model->wake_word : "";
         dl_record(&g_dl[m], prob, word, rms, now_ms);
 
-        // Evaluate: returns trigger word or NULL
+        // Evaluate: uses smoothed prob so L1 continuity doesn't break on single-frame drops
         const char *trigger = dl_evaluate(&g_dl[m], word,
-                                          prob, rms, thr, now_ms);
+                                          prob_smooth, rms, thr, now_ms);
 
-        // Log every 10 frames, or when prob > 0.05, or on trigger
+        // Log every 10 frames, prob>0.05, or trigger; show smoothed prob
         static int cnt = 0; cnt++;
-        if (cnt == 1 || cnt % 10 == 0 || prob > 0.05f || trigger != NULL)
+        if (cnt == 1 || cnt % 10 == 0 || prob_smooth > 0.05f || trigger != NULL)
             ESP_LOGI(TAG, "%s: prob=%.4f rms=%.0f (cnt=%d) invoke=%.1fms%s",
-                     model->wake_word, (double)prob, (double)rms, cnt,
+                     model->wake_word, (double)prob_smooth, (double)rms, cnt,
                      (double)(t_invoke_end - t_invoke_start) / 1000.0,
                      trigger ? " *TRIG*" : "");
 

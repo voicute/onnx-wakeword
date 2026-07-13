@@ -258,47 +258,40 @@ int model_loader_init(model_registry_t *registry, const char *base_path,
     ESP_LOGI(TAG, "Scanning %s for .tflite files...", base_path);
 
     DIR *dir = opendir(base_path);
-    if (dir) {
-        struct dirent *entry;
-        while ((entry = readdir(dir)) != NULL && count < MAX_WAKE_WORDS) {
-            const char *name = entry->d_name;
-            size_t len = strlen(name);
-            if (len < 7 || strcmp(name + len - 7, ".tflite") != 0) continue;
-
-            wake_model_t *m = &registry->models[count];
-            char fname[64];
-            strncpy(fname, name, len - 7);
-            fname[len - 7] = '\0';
-            strncpy(m->wake_word, fname, sizeof(m->wake_word) - 1);
-            m->cons_frames = 3;
-            m->threshold = 0.7f;
-            strncpy(m->model_file, name, sizeof(m->model_file) - 1);
-
-            char fpath[320];
-            snprintf(fpath, sizeof(fpath), "%s/%s", base_path, name);
-            ESP_LOGI(TAG, "Found: %s → trying load...", name);
-            if (model_loader_load_one(m, fpath, resolver, NULL, 0) == 0) {
-                ESP_LOGI(TAG, "  [%d] %s → %s (cons=%d)", count,
-                         m->wake_word, m->model_file, m->cons_frames);
-                count++;
-            } else {
-                ESP_LOGE(TAG, "  FAILED to load %s", name);
-            }
-        }
-        closedir(dir);
+    if (!dir) {
+        ESP_LOGE(TAG, "FATAL: Cannot open SPIFFS dir %s. Put .tflite in spiffs_content/", base_path);
+        return -1;
     }
 
-    // Fallback: if no SPIFFS models found, use compiled model if provided
-    if (count == 0 && compiled_model && compiled_len > 0) {
-        ESP_LOGW(TAG, "No .tflite files in %s, loading compiled model...", base_path);
-        strncpy(registry->models[0].wake_word, "wake", sizeof(registry->models[0].wake_word) - 1);
-        strncpy(registry->models[0].model_file, "compiled", sizeof(registry->models[0].model_file) - 1);
-        registry->models[0].cons_frames = 1;
-        registry->models[0].threshold   = 0.7f;
-        if (model_loader_load_one(&registry->models[0], "compiled", resolver,
-                                   compiled_model, compiled_len) == 0) {
-            count = 1;
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL && count < MAX_WAKE_WORDS) {
+        const char *name = entry->d_name;
+        size_t len = strlen(name);
+        if (len < 7 || strcmp(name + len - 7, ".tflite") != 0) continue;
+
+        wake_model_t *m = &registry->models[count];
+        char fname[64];
+        strncpy(fname, name, len - 7);
+        fname[len - 7] = '\0';
+        strncpy(m->wake_word, fname, sizeof(m->wake_word) - 1);
+        m->cons_frames = 1;
+        m->threshold = 0.7f;
+        strncpy(m->model_file, name, sizeof(m->model_file) - 1);
+
+        char fpath[320];
+        snprintf(fpath, sizeof(fpath), "%s/%s", base_path, name);
+        ESP_LOGI(TAG, "Found: %s → loading...", name);
+        if (model_loader_load_one(m, fpath, resolver, NULL, 0) == 0) {
+            ESP_LOGI(TAG, "  [%d] %s loaded (cons=%d)", count, m->wake_word, m->cons_frames);
+            count++;
+        } else {
+            ESP_LOGE(TAG, "  FAILED to load %s", name);
         }
+    }
+    closedir(dir);
+
+    if (count == 0) {
+        ESP_LOGE(TAG, "FATAL: No .tflite models found in %s. Put your .tflite in spiffs_content/", base_path);
     }
 
     registry->num_models = count;
