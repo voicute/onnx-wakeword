@@ -44,7 +44,7 @@ if exist "managed_components\espressif__led_strip\src\led_strip_spi_dev.c" (
     findstr /c:"esp_heap_caps.h" "managed_components\espressif__led_strip\src\led_strip_spi_dev.c" >nul
     if %ERRORLEVEL% NEQ 0 (
         echo [Voicute] 修补 led_strip 组件...
-        powershell -NoProfile -Command "(Get-Content 'managed_components\espressif__led_strip\src\led_strip_spi_dev.c') -replace '#include \"esp_check.h\"', '#include \"esp_check.h\"`r`n#include \"esp_heap_caps.h\"' | Set-Content 'managed_components\espressif__led_strip\src\led_strip_spi_dev.c' -Encoding ASCII"
+        python -c "import sys; f='managed_components/espressif__led_strip/src/led_strip_spi_dev.c'; c=open(f).read(); open(f,'w').write(c.replace('#include \"esp_check.h\"','#include \"esp_check.h\"\n#include \"esp_heap_caps.h\"'))"
     )
 )
 
