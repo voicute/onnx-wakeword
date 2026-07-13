@@ -19,7 +19,7 @@
 
 | 组件 | 说明 |
 |------|------|
-| MCU | ESP32-S3 (需 PSRAM ≥ 8MB) |
+| MCU | ESP32-S3 (**必须带 PSRAM ≥ 8MB**，否则固件无法启动) |
 | Flash | ≥ 16MB (存储模型 + MultiNet + 固件) |
 | 麦克风 | 4 × MEMS 数字麦克风 (ES7210 ADC) |
 | 音频 | 16kHz / 16bit / 单通道 |
@@ -36,6 +36,7 @@ esp32/
 ├── sdkconfig.defaults           ← 默认 Kconfig 配置
 ├── partitions.csv               ← Flash 分区表
 ├── build.bat / flash.bat        ← Windows 编译/烧录脚本
+├── wake_monitor.py              ← 串口监控脚本 (实时显示 prob/RMS)
 │
 ├── components/
 │   └── voicute/                  ← ★ 核心库 (通用, 不依赖具体模型)

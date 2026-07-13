@@ -39,6 +39,15 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 
+REM 修补 led_strip SPI 驱动 (ESP-IDF v6.x 兼容性问题)
+if exist "managed_components\espressif__led_strip\src\led_strip_spi_dev.c" (
+    findstr /c:"esp_heap_caps.h" "managed_components\espressif__led_strip\src\led_strip_spi_dev.c" >nul
+    if %ERRORLEVEL% NEQ 0 (
+        echo [Voicute] 修补 led_strip 组件...
+        powershell -NoProfile -Command "(Get-Content 'managed_components\espressif__led_strip\src\led_strip_spi_dev.c') -replace '#include \"esp_check.h\"', '#include \"esp_check.h\"`r`n#include \"esp_heap_caps.h\"' | Set-Content 'managed_components\espressif__led_strip\src\led_strip_spi_dev.c' -Encoding ASCII"
+    )
+)
+
 echo.
 echo [Voicute] 开始编译...
 echo.

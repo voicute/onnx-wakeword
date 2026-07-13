@@ -16,8 +16,10 @@ set "PATH=%TOOLS_BASE%\tools\xtensa-esp-elf\esp-15.2.0_20251204\xtensa-esp-elf\b
 
 cd /d "%~dp0"
 
-echo [Voicute] 烧录 app + 模型...
-python -m esptool --chip esp32s3 -p COM5 -b 460800 --before default-reset --after hard-reset write-flash 0x10000 build\factory_01.bin 0x957000 build\models.bin
+echo [Voicute] 烧录...
+cd /d "%~dp0\build"
+python -m esptool --chip esp32s3 -p COM5 -b 460800 --before default-reset --after hard-reset write-flash "@flash_args"
+cd /d "%~dp0"
 if %ERRORLEVEL% NEQ 0 (
     echo [Voicute] 烧录失败! 检查 COM 口和设备连接
     pause
