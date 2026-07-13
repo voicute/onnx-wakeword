@@ -1,15 +1,14 @@
 @echo off
-chcp 65001 >nul
 REM ============================================================
-REM  Voicute Wake Word — 编译脚本
-REM  测试平台: ESP32-S3-HMI-DevKit, ESP-IDF v6.0.1, Windows 11
+REM  Voicute Wake Word - Build Script
+REM  Platform: ESP32-S3-HMI-DevKit, ESP-IDF v6.0.1, Windows 11
 REM
-REM  前置要求:
-REM    1. 安装 ESP-IDF v6.0 (https://docs.espressif.com)
-REM    2. 把 .tflite 模型放到 spiffs_content/ 目录
-REM    3. 把训练导出的 head.h 替换 main/head.h
+REM  Prerequisites:
+REM    1. Install ESP-IDF v6.0 (https://docs.espressif.com)
+REM    2. Put .tflite model in spiffs_content/
+REM    3. Replace main/head.h with your own weights
 REM
-REM  如果 ESP-IDF 路径不同, 请修改下面的 IDF_PATH
+REM  Change IDF_PATH below if your ESP-IDF is elsewhere
 REM ============================================================
 
 set "IDF_PATH=C:\esp\v6.0.1\esp-idf"
@@ -30,31 +29,25 @@ set IDF_COMPONENT_VERIFY_SSL=0
 cd /d "%~dp0"
 
 echo.
-echo [Voicute] 设置芯片型号 ESP32-S3...
+echo [Voicute] Setting target ESP32-S3...
 echo.
 python "%IDF_PATH%\tools\idf.py" set-target esp32s3
 if %ERRORLEVEL% NEQ 0 (
-    echo [Voicute] set-target 失败!
+    echo [Voicute] set-target FAILED!
     pause
     exit /b %ERRORLEVEL%
 )
 
-REM 修补 led_strip SPI 驱动 (ESP-IDF v6.x 兼容性问题)
-if exist "managed_components\espressif__led_strip\src\led_strip_spi_dev.c" (
-    findstr /c:"esp_heap_caps.h" "managed_components\espressif__led_strip\src\led_strip_spi_dev.c" >nul
-    if %ERRORLEVEL% NEQ 0 (
-        echo [Voicute] 修补 led_strip 组件...
-        python -c "import sys; f='managed_components/espressif__led_strip/src/led_strip_spi_dev.c'; c=open(f).read(); open(f,'w').write(c.replace('#include \"esp_check.h\"','#include \"esp_check.h\"\n#include \"esp_heap_caps.h\"'))"
-    )
-)
+echo [Voicute] Patching led_strip component...
+python patch_led_strip.py
 
 echo.
-echo [Voicute] 开始编译...
+echo [Voicute] Building...
 echo.
 python "%IDF_PATH%\tools\idf.py" build
 if %ERRORLEVEL% NEQ 0 (
-    echo [Voicute] 编译失败!
+    echo [Voicute] Build FAILED!
     pause
     exit /b %ERRORLEVEL%
 )
-echo [Voicute] 编译成功! 运行 flash.bat 烧录
+echo [Voicute] Build OK! Run flash.bat to flash
