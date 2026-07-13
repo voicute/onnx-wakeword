@@ -83,7 +83,7 @@ cp head.h main/head.h
 打开 `main/main.cpp`，搜索 `WAKE_WORD`:
 
 ```cpp
-#define WAKE_WORD  "你的唤醒词"   // 仅用于日志显示
+#define WAKE_WORD  "关键词"   // 仅用于日志显示, 换成你的唤醒词名
 ```
 
 调整检测参数 (同文件 `detect_loop` 函数内):

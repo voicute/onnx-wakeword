@@ -30,9 +30,18 @@ set IDF_COMPONENT_VERIFY_SSL=0
 cd /d "%~dp0"
 
 echo.
+echo [Voicute] 设置芯片型号 ESP32-S3...
+echo.
+python "%IDF_PATH%\tools\idf.py" set-target esp32s3
+if %ERRORLEVEL% NEQ 0 (
+    echo [Voicute] set-target 失败!
+    pause
+    exit /b %ERRORLEVEL%
+)
+
+echo.
 echo [Voicute] 开始编译...
 echo.
-
 python "%IDF_PATH%\tools\idf.py" build
 if %ERRORLEVEL% NEQ 0 (
     echo [Voicute] 编译失败!

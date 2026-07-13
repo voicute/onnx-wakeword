@@ -16,7 +16,7 @@
 #include <string.h>
 
 // ── User configuration ──
-#define WAKE_WORD  "你的唤醒词"   // 唤醒词显示名 (仅用于日志, 不影响模型检测)
+#define WAKE_WORD  "关键词"   // 唤醒词显示名 (仅用于日志, 不影响模型检测)
 
 #define TEST_MODE 0  // 0=live, 1=PCM test, 2=PCM dump
 #if TEST_MODE == 1
