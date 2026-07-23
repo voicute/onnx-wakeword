@@ -28,6 +28,9 @@ class WakeWordEngine:
         self.models = []
         self.dscnn_mode = False
         self.dscnn_mel_time = 98
+        self.is_multi_keyword = False
+        self.multi_kw_session = None
+        self.keywords = []
         self.audio_samples_needed = 0
 
         # Detection state
@@ -80,24 +83,38 @@ class WakeWordEngine:
             info = json.load(open(model_info_path, 'r', encoding='utf-8'))
             self._zip = None
 
-        self.dscnn_mode = info.get('model_type') == 'dscnn'
+        self.dscnn_mode = info.get('model_type') in ('dscnn', 'tcn', 'multi_keyword')
         self.dscnn_mel_time = info.get('mel_time', 98)
-        cfg = info.get('models', [info]) if info.get('multi_model') else [info]
 
-        base = os.path.dirname(model_info_path)
-        self.models = []
-        for m in cfg:
+        # Multi-keyword: single model with N outputs
+        if info.get('model_type') == 'multi_keyword':
+            self.is_multi_keyword = True
+            self.keywords = info['keywords']
+            base = os.path.dirname(model_info_path)
+            model_file = info.get('model_file', 'model.onnx')
             if self._zip:
-                data = self._zip.read(m['model_file'])
-                sess = ort.InferenceSession(data, providers=['CPUExecutionProvider'])
+                data = self._zip.read(model_file)
+                self.multi_kw_session = ort.InferenceSession(data, providers=['CPUExecutionProvider'])
             else:
-                path = os.path.join(base, m['model_file'])
-                sess = ort.InferenceSession(path, providers=['CPUExecutionProvider'])
-            self.models.append({
-                'name': m['wake_word'],
-                'session': sess,
-                'cons_frames': m.get('cons_frames', 3),
-            })
+                self.multi_kw_session = ort.InferenceSession(os.path.join(base, model_file), providers=['CPUExecutionProvider'])
+            self.models = [{'name': kw, 'cons_frames': info.get('cons_frames', 2)} for kw in self.keywords]
+        # Legacy: multi-model (separate ONNX per keyword)
+        else:
+            cfg = info.get('models', [info]) if info.get('multi_model') else [info]
+            base = os.path.dirname(model_info_path)
+            self.models = []
+            for m in cfg:
+                if self._zip:
+                    data = self._zip.read(m['model_file'])
+                    sess = ort.InferenceSession(data, providers=['CPUExecutionProvider'])
+                else:
+                    path = os.path.join(base, m['model_file'])
+                    sess = ort.InferenceSession(path, providers=['CPUExecutionProvider'])
+                self.models.append({
+                    'name': m['wake_word'],
+                    'session': sess,
+                    'cons_frames': m.get('cons_frames', 3),
+                })
 
         if self.dscnn_mode:
             self.audio_samples_needed = self.dscnn_mel_time * MEL_HOP + MEL_WIN
@@ -131,11 +148,21 @@ class WakeWordEngine:
                 src = start + f
                 if 0 <= src < frames:
                     dscnn_in[0, f] = mel2d[src]
-            for m in self.models:
-                out = m['session'].run(None, {'input': dscnn_in})
-                scores.append(float(out[0].flatten()[0]))
-                words.append(m['name'])
-                cf_list.append(m['cons_frames'])
+            # Multi-keyword: single model, single inference -> [1, N]
+            if self.is_multi_keyword:
+                out = self.multi_kw_session.run(None, {'input': dscnn_in})
+                data = out[0].flatten()
+                for i, kw in enumerate(self.keywords):
+                    scores.append(float(data[i]))
+                    words.append(kw)
+                    cf_list.append(2)
+            # Legacy: loop over multiple models
+            else:
+                for m in self.models:
+                    out = m['session'].run(None, {'input': dscnn_in})
+                    scores.append(float(out[0].flatten()[0]))
+                    words.append(m['name'])
+                    cf_list.append(m['cons_frames'])
         else:
             return None
 

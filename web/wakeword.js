@@ -28,6 +28,7 @@ window.VoicuteWakeWord = {
     create() {
         let melSession = null, models = [];
         let dscnnMode = false, dscnnMelTime = 98;
+        let isMultiKeyword = false, multiKwSession = null, keywords = [];
         let audioSamplesNeeded = 0;
 
         // ═══════════════════════════════════════════════
@@ -92,22 +93,42 @@ window.VoicuteWakeWord = {
                 info = JSON.parse(new TextDecoder().decode(buf));
             }
 
-            dscnnMode = info.model_type === 'dscnn' || info.model_type === 'tcn';
+            dscnnMode = info.model_type === 'dscnn' || info.model_type === 'tcn' || info.model_type === 'multi_keyword';
             dscnnMelTime = info.mel_time || 98;
-            const cfg = (info.multi_model && info.models) ? info.models : [info];
-            models = await Promise.all(cfg.map(async m => ({
-                name: m.wake_word,
-                session: await (async () => {
-                    if (zip) {
-                        const f = zip.file(m.model_file);
-                        if (!f) throw new Error(`${m.model_file} not found in ZIP`);
-                        return await ort.InferenceSession.create(await f.async('arraybuffer'), { executionProviders: ['wasm'] });
-                    }
-                    const base = modelInfoUrl.substring(0, modelInfoUrl.lastIndexOf('/') + 1);
-                    return await _loadOrtModel(base + m.model_file);
-                })(),
-                consFrames: m.cons_frames || 3,
-            })));
+
+            // ── Multi-keyword: single model with N outputs ──
+            if (info.model_type === 'multi_keyword') {
+                isMultiKeyword = true;
+                keywords = info.keywords;
+                const base = modelInfoUrl.substring(0, modelInfoUrl.lastIndexOf('/') + 1);
+                const modelFile = info.model_file || 'model.onnx';
+                if (zip) {
+                    const f = zip.file(modelFile);
+                    if (!f) throw new Error(modelFile + ' not found in ZIP');
+                    multiKwSession = await ort.InferenceSession.create(await f.async('arraybuffer'), { executionProviders: ['wasm'] });
+                } else {
+                    multiKwSession = await _loadOrtModel(base + modelFile);
+                }
+                models = keywords.map((kw, i) => ({ name: kw, index: i }));
+                console.log('[wakeword] multi-keyword: ' + keywords.length + ' keywords in 1 model');
+            }
+            // ── Legacy: multi-model (separate ONNX per keyword) ──
+            else {
+                const cfg = (info.multi_model && info.models) ? info.models : [info];
+                models = await Promise.all(cfg.map(async m => ({
+                    name: m.wake_word,
+                    session: await (async () => {
+                        if (zip) {
+                            const f = zip.file(m.model_file);
+                            if (!f) throw new Error(m.model_file + ' not found in ZIP');
+                            return await ort.InferenceSession.create(await f.async('arraybuffer'), { executionProviders: ['wasm'] });
+                        }
+                        const base = modelInfoUrl.substring(0, modelInfoUrl.lastIndexOf('/') + 1);
+                        return await _loadOrtModel(base + m.model_file);
+                    })(),
+                    consFrames: m.cons_frames || 3,
+                })));
+            }
             audioSamplesNeeded = dscnnMode
                 ? dscnnMelTime * MEL_HOP + MEL_WIN
                 : (76 + (Math.max(...models.map(m => m.embFrames || 1)) - 1) * 8) * MEL_HOP + MEL_WIN;
@@ -136,10 +157,23 @@ window.VoicuteWakeWord = {
                     const s = start + f;
                     if (s >= 0 && s < frames) input.set(mel2d.subarray(s * N_MELS, (s + 1) * N_MELS), f * N_MELS);
                 }
-                for (const m of models) {
-                    const out = await m.session.run({ input: new ort.Tensor('float32', input, [1, dscnnMelTime, N_MELS]) });
-                    scores.push(out[Object.keys(out)[0]].data[0]);
-                    words.push(m.name); cfList.push(m.consFrames);
+                // ── Multi-keyword: single model, single inference → [1, N] output ──
+                if (isMultiKeyword) {
+                    const out = await multiKwSession.run({ input: new ort.Tensor('float32', input, [1, dscnnMelTime, N_MELS]) });
+                    const data = out[Object.keys(out)[0]].data;
+                    for (let i = 0; i < keywords.length; i++) {
+                        scores.push(data[i]);
+                        words.push(keywords[i]);
+                        cfList.push(2);
+                    }
+                }
+                // ── Legacy: loop over multiple models ──
+                else {
+                    for (const m of models) {
+                        const out = await m.session.run({ input: new ort.Tensor('float32', input, [1, dscnnMelTime, N_MELS]) });
+                        scores.push(out[Object.keys(out)[0]].data[0]);
+                        words.push(m.name); cfList.push(m.consFrames);
+                    }
                 }
             } else { return null; }
 
