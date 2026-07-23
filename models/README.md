@@ -22,7 +22,26 @@
 }
 ```
 
-### 多个唤醒词
+### 多关键词（单模型，推荐）
+
+一个 ONNX 模型输出 N 个关键词的概率，一次推理全部识别：
+
+```json
+{
+  "model_type": "multi_keyword",
+  "keywords": ["小娜", "你好小娜", "小娜小娜"],
+  "model_file": "multi_xiaona.onnx",
+  "mel_time": 98,
+  "n_mels": 32,
+  "cons_frames": 2
+}
+```
+
+- `keywords` 数组顺序与模型输出的 `data[0]`, `data[1]`, ... 一一对应
+- 模型仅 130-167KB（2-10 词），单次推理 30ms
+- 支持 Android / Web / Python / Linux
+
+### 多个唤醒词（旧格式，每词独立模型）
 
 ```json
 {
@@ -46,6 +65,7 @@
 | 开始播放 | `kaishibofang.onnx` | v9.3 |
 | 来福 | `laifu.onnx` | v9.3 |
 | 咕咕嘎嘎 | `gugugaga.onnx` | v9.3 |
+| **小娜 / 你好小娜 / 小娜小娜** | `multi_xiaona.onnx` | v9.3-multi |
 
 > **语音定制版 (voice)**: 在标准 TTS 训练基础上加入真人录音 x50 权重 + 80 epoch 训练，误触发率比标准版低约 17%，对特定用户的发音习惯识别更稳定。
 

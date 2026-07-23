@@ -1,8 +1,10 @@
 {
-  "model_type": "dscnn",
+  "model_type": "multi_keyword",
+  "keywords": ["小娜", "你好小娜", "小娜小娜"],
+  "model_file": "multi_xiaona.onnx",
+  "arch": "causal-ds-tcn-multi",
+  "K": 3,
+  "cons_frames": 2,
   "mel_time": 98,
-  "multi_model": true,
-  "models": [
-    {"wake_word": "曼波", "model_file": "manbo.onnx", "emb_frames": 1, "cons_frames": 2}
-  ]
+  "n_mels": 32
 }
