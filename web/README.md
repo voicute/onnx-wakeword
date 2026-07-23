@@ -104,6 +104,25 @@ engine.debug;                // { sampleRate, inferCount, ... }
 
 ## model_info.json 格式
 
+### 多关键词模型（单模型，多输出）— 推荐
+
+```json
+{
+  "model_type": "multi_keyword",
+  "keywords": ["小娜", "你好小娜", "小娜小娜"],
+  "model_file": "model.onnx",
+  "mel_time": 98,
+  "n_mels": 32,
+  "cons_frames": 2
+}
+```
+
+- `keywords` 数组顺序与模型输出 `data[0]`, `data[1]`, ... 一一对应
+- 一次推理输出 `[1, N]` sigmoid，前端自动取 argmax
+- 模型仅 130-167KB（2-10 词），支持 ZIP 包加载
+
+### 旧格式：多模型（每个关键词独立 ONNX）
+
 ```json
 {
   "model_type": "dscnn",
