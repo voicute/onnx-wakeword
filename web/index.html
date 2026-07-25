@@ -193,7 +193,7 @@ l5Delta.oninput = () => {
     engine = VoicuteWakeWord.create();
     logStatus('加载模型配置...');
     await engine.load(
-      'models/multi_N3_253a23_v9.3.zip',
+      'models/multi_N10_b478cd_v9.3_demo.zip',
       'models/melspectrogram.onnx'
     );
     const models = engine.getModels();
