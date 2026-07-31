@@ -270,10 +270,11 @@ class WakeWordEngine:
 
     def _audio_callback(self, on_detect, pyaudio_obj):
         engine = self
+        import pyaudio as _pa
 
         def callback(in_data, frame_count, time_info, status):
             if not engine._running:
-                return (None, pyaudio.paComplete)
+                return (None, _pa.paComplete)
             audio = np.frombuffer(in_data, dtype=np.int16).astype(np.float32)
             rms = np.sqrt(np.mean(audio ** 2))
             result = engine.predict(audio)
@@ -292,7 +293,7 @@ class WakeWordEngine:
             )
             if detected and on_detect:
                 on_detect(detected, result['prob'], {'bg': result['bg'], 'all': result['all'], 'rms': rms})
-            return (None, pyaudio.paContinue)
+            return (None, _pa.paContinue)
 
         return callback
 
