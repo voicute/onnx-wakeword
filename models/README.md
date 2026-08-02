@@ -1,83 +1,101 @@
-# 模型目录
+# Model Directory
 
-放置训练好的 ONNX 唤醒词模型。
+Trained ONNX keyword spotting and wake word models.
 
-## 共享模型
+## Shared Model
 
-`melspectrogram.onnx` 是通用的音频预处理模块，**本项目已提供**，无需额外下载。
+`melspectrogram.onnx` is the universal audio preprocessing module — **provided in this repo**, no additional download needed.
 
-## 如何使用
+## Demo Models
 
-### 单个唤醒词
+Current models from [voicute.com](https://www.voicute.com):
 
-1. 把训练好的模型文件放入 `models/`
-2. 编辑 `model_info.json`：
+### English
 
-```json
-{
-  "wake_word": "你的唤醒词",
-  "model_file": "your_model.onnx",
-  "emb_frames": 1,
-  "cons_frames": 3
-}
-```
+| Keyword | Model File | Version |
+|---------|-----------|:-------:|
+| Hey Friday | `hey_friday.onnx` | v9.3 |
+| Hey limi | `hey_limi.onnx` | v9.3 |
 
-### 多关键词（单模型，推荐）
+> More languages available at [voicute.com](https://www.voicute.com). Supports **150+ languages**.
 
-一个 ONNX 模型输出 N 个关键词的概率，一次推理全部识别：
+### Chinese
+
+| Keyword | Model File | Version |
+|---------|-----------|:-------:|
+| 曼波 | `manbo.onnx` | v9.3 |
+| 曼波 (voice) | `manbo_voice_model.onnx` | v9.3-voice |
+| 你好电脑 | `nihaodiannao.onnx` | v9.3 |
+| 开始播放 | `kaishibofang.onnx` | v9.3 |
+| 来福 | `laifu.onnx` | v9.3 |
+| 咕咕嘎嘎 | `gugugaga.onnx` | v9.3 |
+| 小娜 / 你好小娜 / 小娜小娜 | `multi_xiaona.onnx` | v9.3-multi |
+
+> **Voice edition**: TTS training + real user recordings (50x weight) + 80 epochs. ~17% lower false-trigger rate vs standard.
+
+## How to Use
+
+### Multi-keyword (single model, recommended)
+
+One ONNX model outputs N keyword probabilities in a single inference:
 
 ```json
 {
   "model_type": "multi_keyword",
-  "keywords": ["小娜", "你好小娜", "小娜小娜"],
-  "model_file": "multi_xiaona.onnx",
+  "keywords": ["hey friday", "turn on light"],
+  "model_file": "model.onnx",
   "mel_time": 98,
   "n_mels": 32,
   "cons_frames": 2
 }
 ```
 
-- `keywords` 数组顺序与模型输出的 `data[0]`, `data[1]`, ... 一一对应
-- 模型仅 130-167KB（2-10 词），单次推理 30ms
-- 支持 Android / Web / Python / Linux
+- Model size: 130–167 KB (2–10 keywords)
+- Supports Android / Web / Python / ESP32
 
-### 多个唤醒词（旧格式，每词独立模型）
+### Single keyword (legacy)
 
 ```json
 {
-  "multi_model": true,
-  "models": [
-    { "wake_word": "打开灯光", "model_file": "dakaidengguang.onnx", "emb_frames": 1, "cons_frames": 3 },
-    { "wake_word": "你好电脑", "model_file": "nihaodiannao.onnx",   "emb_frames": 1, "cons_frames": 3 }
-  ]
+  "wake_word": "hey friday",
+  "model_file": "model.onnx",
+  "emb_frames": 1,
+  "cons_frames": 3
 }
 ```
 
-## 演示模型
+## Version History
 
-当前 `models/` 目录包含以下演示模型（来自 [voicute.com](https://www.voicute.com)）：
+| Version | Changes |
+|:-------:|---------|
+| v9.3 | Reduced false-trigger rate, expanded voice coverage |
+| v9.2 | Expanded training data diversity |
+| v9.1 | Improved far-field recognition |
+| v9.0 | New Causal TCN architecture |
 
-| 唤醒词 | 模型文件 | 版本 |
-|--------|----------|:---:|
+---
+
+## 中文说明
+
+### 演示模型
+
+| 关键词 | 模型文件 | 版本 |
+|--------|---------|:---:|
 | 曼波 | `manbo.onnx` | v9.3 |
 | 曼波 (语音定制) | `manbo_voice_model.onnx` | v9.3-voice |
 | 你好电脑 | `nihaodiannao.onnx` | v9.3 |
 | 开始播放 | `kaishibofang.onnx` | v9.3 |
 | 来福 | `laifu.onnx` | v9.3 |
 | 咕咕嘎嘎 | `gugugaga.onnx` | v9.3 |
-| **小娜 / 你好小娜 / 小娜小娜** | `multi_xiaona.onnx` | v9.3-multi |
+| 小娜 / 你好小娜 / 小娜小娜 | `multi_xiaona.onnx` | v9.3-multi |
 
-> **语音定制版 (voice)**: 在标准 TTS 训练基础上加入真人录音 x50 权重 + 80 epoch 训练，误触发率比标准版低约 17%，对特定用户的发音习惯识别更稳定。
+> **语音定制版 (voice)**: 标准 TTS 基础上加入真人录音 x50 权重 + 80 epoch 训练，误触发率比标准版低约 17%。
 
-## 版本说明
+### 版本说明
 
 | 版本 | 主要更新 |
 |------|------|
-| v9.3 | 优化误唤醒率，提升多音色覆盖 |
-| v9.2 | 扩展训练数据多样性 |
-| v9.1 | 增强远场识别能力 |
-| v9.0 | 新一代唤醒架构，替代旧版 |
-
-## `emb_frames` 说明
-
-训练时自动确定的帧数参数，记录在训练输出的 `config.json` 中。**必须和模型训练时一致**，填写错误会导致无法识别。
+| v9.3 | 优化误唤醒率 |
+| v9.2 | 扩展训练数据 |
+| v9.1 | 增强远场识别 |
+| v9.0 | Causal TCN 新架构 |

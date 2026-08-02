@@ -1,6 +1,46 @@
-# Voicute Wake Word — ESP32 唤醒词检测
+# ESP32 — Offline Keyword Spotting & Wake Word Engine
 
-基于 ESP32-S3 的离线唤醒词检测引擎，支持自定义唤醒词、多模型同时检测、语音命令联动。
+Offline keyword detection for ESP32-S3. Custom keywords, multi-model, voice commands.
+
+> 基于 ESP32-S3 的离线关键词检测引擎，支持自定义唤醒词、多模型同时检测、语音命令联动。
+
+[:us: English](#english) | [:cn: 中文](#中文)
+
+---
+
+## English
+
+**Tested on**: ESP32-S3-HMI-DevKit (4 MEMS mics, ES7210 ADC, 8MB PSRAM, 16MB Flash)
+
+### Features
+
+- **Fully offline** — inference runs entirely on ESP32
+- **Custom keywords** — train your own, replace `head.h` + `.tflite`
+- **5-layer detection (L1-L5)** — ported from Android `DetectionLogic.java`
+- **Multi-model** — up to 3 keywords detected simultaneously
+- **Low false-trigger** — L5 energy jump + post-silence detection
+
+### Quick Start
+
+1. Train a model and export `.tflite` + `head.h`
+2. Copy `.tflite` to `spiffs_content/`, replace `main/head.h`
+3. `build.bat` (or `idf.py build`)
+4. `flash.bat` (or `idf.py flash`)
+
+### Dependencies
+
+| Component | Purpose |
+|-----------|---------|
+| esp-tflite-micro | TFLite inference |
+| esp-dsp | RFFT for mel extraction |
+
+For detailed configuration, threshold tuning, and troubleshooting, see the Chinese section below.
+
+---
+
+## 中文
+
+基于 ESP32-S3 的离线唤醒词检测引擎。
 
 **测试平台**: ESP32-S3-HMI-DevKit (4 颗 MEMS 麦克风, ES7210 ADC, 8MB PSRAM, 16MB Flash)
 
