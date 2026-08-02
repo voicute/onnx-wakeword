@@ -10,16 +10,15 @@ Trained ONNX keyword spotting and wake word models.
 
 Current models from [voicute.com](https://www.voicute.com):
 
-### English
+### English (`en/`)
 
 | Keyword | Model File | Version |
 |---------|-----------|:-------:|
 | Hey Friday | `hey_friday.onnx` | v9.3 |
-| Hey limi | `hey_limi.onnx` | v9.3 |
 
 > More languages available at [voicute.com](https://www.voicute.com). Supports **150+ languages**.
 
-### Chinese
+### Chinese (`zh/`)
 
 | Keyword | Model File | Version |
 |---------|-----------|:-------:|
@@ -31,13 +30,13 @@ Current models from [voicute.com](https://www.voicute.com):
 | 咕咕嘎嘎 | `gugugaga.onnx` | v9.3 |
 | 小娜 / 你好小娜 / 小娜小娜 | `multi_xiaona.onnx` | v9.3-multi |
 
-> **Voice edition**: TTS training + real user recordings (50x weight) + 80 epochs. ~17% lower false-trigger rate vs standard.
+> **Voice edition (语音定制版)**: Standard TTS training + real user recordings (50x weight) + 80 epochs of training. Achieves ~17% lower false-trigger rate compared to the standard edition, with more stable recognition for specific user pronunciation patterns.
 
 ## How to Use
 
 ### Multi-keyword (single model, recommended)
 
-One ONNX model outputs N keyword probabilities in a single inference:
+One ONNX model outputs N keyword probabilities in a single inference. Model size: 130–167 KB for 2–10 keywords. Supports Android / Web / Python / ESP32.
 
 ```json
 {
@@ -49,9 +48,6 @@ One ONNX model outputs N keyword probabilities in a single inference:
   "cons_frames": 2
 }
 ```
-
-- Model size: 130–167 KB (2–10 keywords)
-- Supports Android / Web / Python / ESP32
 
 ### Single keyword (legacy)
 
@@ -77,7 +73,7 @@ One ONNX model outputs N keyword probabilities in a single inference:
 
 ## 中文说明
 
-### 演示模型
+### 演示模型 (`zh/`)
 
 | 关键词 | 模型文件 | 版本 |
 |--------|---------|:---:|
