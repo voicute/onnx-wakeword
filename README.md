@@ -35,7 +35,7 @@ Voicute is an open-source, cross-platform inference engine for custom keyword sp
 
 ### Online (recommended)
 
-Go to [voicute.com](https://www.voicute.com), type your keyword, get an ONNX model. Free first keyword.
+Go to [voicute.com](https://www.voicute.com), type your keyword, get an ONNX model in minutes.
 
 ### Train yourself
 

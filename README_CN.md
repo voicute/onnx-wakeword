@@ -30,7 +30,7 @@
 
 ### 在线生成
 
-[voicute.com](https://www.voicute.com) 输入中文唤醒词，自动生成 ONNX 模型。首次免费。
+[voicute.com](https://www.voicute.com) 输入唤醒词或关键词，自动生成 ONNX 模型。
 
 ## 模型文件
 
