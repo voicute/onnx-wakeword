@@ -37,7 +37,7 @@ Tested on **v9.3 models**.
 
 | Metric | Value |
 |--------|-------|
-| ONNX size | ~128KB (FP32) / ~25KB (INT8) |
+| ONNX size | ~128KB (FP32) / ~74KB (INT8) |
 | Desktop inference | <5ms / frame |
 | ESP32-S3 inference | <10ms / frame |
 
@@ -53,22 +53,13 @@ Tested on **v9.3 models**.
 
 > Real-voice recall reaches 90%+ with 5–20 user recordings added during training.
 
-**False trigger resistance** (20,000 negative WAVs across speech, music, noise, near-wake phrases; threshold 0.5, L1+L3 enabled):
+**False trigger resistance** (validated on ~25,000 held-out negatives across speech, music, noise, near-wake phrases; threshold 0.5):
 
 | Metric | Value |
 |--------|-------|
-| Negative accuracy (static test set) | 93–96% |
-| Real-world estimate (quiet indoor) | 0.1–0.3 / hour |
-| With L5 enabled | ~0.1 / hour |
+| Negative accuracy (validation set) | 96–98% |
 
-**Anti-false-trigger layers** (quiet-room ambient noise test):
-
-| Configuration | FA / Hour | Reduction |
-|:---|:---:|:---:|
-| Off | ~2.5 | — |
-| L1 | ~0.7 | -72% |
-| L1 + L3 | ~0.2 | -91% |
-| L1 + L3 + L5 | ~0.1 | -96% |
+> **Negative sample mining** (in development): For individual keywords experiencing false triggers, we plan to collect user-reported false trigger audio and feed it back into training as weighted hard negatives, continuously improving per-keyword accuracy.
 
 > Training takes ~30 minutes per keyword. Supports Chinese, English, and 150+ languages.
 
