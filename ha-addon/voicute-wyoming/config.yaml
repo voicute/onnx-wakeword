@@ -1,0 +1,34 @@
+name: "Voicute Wake Word"
+version: "1.0.0"
+slug: "voicute-wyoming"
+description: "Custom wake word detection powered by Voicute — supports Chinese, English, and 150+ languages with sub-130KB models"
+url: "https://github.com/voicute/onnx-wakeword"
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+host_network: true
+ports:
+  10400/tcp: 10400
+ports_description:
+  10400/tcp: "Wyoming protocol"
+options:
+  model_info: "/data/model_info.json"
+  mel: "/data/melspectrogram.onnx"
+  threshold: 0.4
+  cooldown: 1500
+  L1: true
+  L3: true
+  L5: false
+  debug: false
+schema:
+  model_info: str
+  mel: str
+  threshold: float
+  cooldown: int
+  L1: bool
+  L3: bool
+  L5: bool
+  debug: bool
+homeassistant: "2024.1.0"
