@@ -51,11 +51,11 @@ python wyoming_voicute.py \
 ### Pull from Docker Hub (recommended)
 
 ```bash
-docker pull voicute/wyoming:latest
+docker pull voicute/voicute-wyoming:latest
 
 docker run --rm --network host \
     -v $(pwd)/models:/models \
-    voicute/wyoming:latest \
+    voicute/voicute-wyoming:latest \
     --model-info /models/model_info.json \
     --mel /models/melspectrogram.onnx
 ```
@@ -64,12 +64,12 @@ docker run --rm --network host \
 
 ```bash
 cd onnx-wakeword
-docker build -t voicute/wyoming .
+docker build -t voicute/voicute-wyoming .
 ```
 
 > **Note for users in China:** If `docker build` fails with network errors, disable BuildKit:
 > ```bash
-> DOCKER_BUILDKIT=0 docker build -t voicute/wyoming .
+> DOCKER_BUILDKIT=0 docker build -t voicute/voicute-wyoming .
 > ```
 
 ### docker-compose
