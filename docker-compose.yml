@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  voicute:
+    image: voicute/wyoming:latest
+    container_name: voicute-wyoming
+    network_mode: host
+    volumes:
+      - ./models:/models
+    command:
+      - --uri
+      - tcp://0.0.0.0:10400
+      - --model-info
+      - /models/model_info.json
+      - --mel
+      - /models/melspectrogram.onnx
+      - --threshold
+      - "0.4"
+      - --L1
+      - "1"
+      - --L3
+      - "1"
+    restart: unless-stopped

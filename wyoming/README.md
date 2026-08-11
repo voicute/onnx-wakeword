@@ -49,10 +49,19 @@ python wyoming_voicute.py \
 ## Docker
 
 ```bash
+# Build
+cd onnx-wakeword
+docker build -t voicute/wyoming .
+
+# Run (one-liner)
 docker run --rm --network host \
     -v $(pwd)/models:/models \
     voicute/wyoming \
     --model-info /models/model_info.json \
-    --mel /models/melspectrogram.onnx \
-    --preload "Hey Friday"
+    --mel /models/melspectrogram.onnx
+
+# Or with docker-compose (recommended)
+docker compose up -d
 ```
+
+Edit `docker-compose.yml` to set your model path, then in Home Assistant add a Wyoming service at `host:10400`.
