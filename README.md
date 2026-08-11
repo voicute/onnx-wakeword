@@ -72,16 +72,10 @@ See [models/README.md](models/README.md) for architecture.
 | L1 + L3 | ~0.2 | -91% |
 | L1 + L3 + L5 | ~0.1 | -96% |
 
-**vs OpenWakeWord** (same Cyclops keyword, same test sets):
-
-| Metric | Voicute (v9.3) | OpenWakeWord |
-|--------|:---:|:---:|
-| Cyclops recall | **92.3%** | 37–41% |
-| Negative accuracy (20K neg) | **93–96%** | 2.1–3.9 FA / hr |
-| Model size | **128KB** | ~800KB |
-| Training time | **~30 min** | ~75–90 min |
-| Multi-language | ✅ 150+ languages | ❌ English only |
-| Per-word quality | ✅ Stable 90%+ | ⚠️ Varies 50–80% |
+> Models are trained per-keyword from scratch with ~2,000 TTS positives + ~15,000 negatives.
+> The Causal DS-TCN architecture (~25K params) learns keyword-specific features directly from mel
+> spectrograms — no frozen embeddings, no language constraints. Training completes in ~30 minutes,
+> and per-keyword quality is consistently 90%+ across languages and word lengths.
 
 ---
 
