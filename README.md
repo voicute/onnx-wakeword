@@ -31,6 +31,22 @@ Voicute is an open-source, cross-platform inference engine for custom keyword sp
 
 ---
 
+## Performance
+
+| Metric | Value |
+|--------|-------|
+| Model size | ~135KB ONNX (3-keyword) |
+| Parameters | ~25K |
+| Inference (desktop) | <5ms / frame |
+| Inference (ESP32-S3 INT8) | <10ms / frame |
+| Recall | >90% across tested keywords |
+| False triggers (L1+L3) | 0.1–0.3 / hour |
+| Multi-keyword capacity | 2–10+ keywords, single pass |
+
+> **v9.3** improved false trigger suppression in quiet environments. L2/L4 now rarely needed. See [models/README.md](models/README.md) for model changelog.
+
+---
+
 ## Getting a Model
 
 ### Online (recommended)
