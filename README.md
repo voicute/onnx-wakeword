@@ -33,8 +33,7 @@ Voicute is an open-source, cross-platform inference engine for custom keyword sp
 
 ## Performance
 
-Tested on **v9.3 Causal DS-TCN models** (~25K params, ~128KB ONNX, 2000 pos + 15000 neg training samples).
-See [models/README.md](models/README.md) for architecture.
+Tested on **v9.3 models** (~25K params, ~128KB ONNX, 2000 pos + 15000 neg training samples).
 
 | Metric | Value |
 |--------|-------|
@@ -72,10 +71,8 @@ See [models/README.md](models/README.md) for architecture.
 | L1 + L3 | ~0.2 | -91% |
 | L1 + L3 + L5 | ~0.1 | -96% |
 
-> Models are trained per-keyword from scratch with ~2,000 TTS positives + ~15,000 negatives.
-> The Causal DS-TCN architecture (~25K params) learns keyword-specific features directly from mel
-> spectrograms — no frozen embeddings, no language constraints. Training completes in ~30 minutes,
-> and per-keyword quality is consistently 90%+ across languages and word lengths.
+> Models are trained per-keyword with ~2,000 TTS positives + ~15,000 negatives.
+> Training takes ~30 minutes per keyword. Supports Chinese, English, and 150+ languages.
 
 ---
 
