@@ -33,11 +33,10 @@ Voicute is an open-source, cross-platform inference engine for custom keyword sp
 
 ## Performance
 
-Tested on **v9.3 models** (~25K params, ~128KB ONNX).
+Tested on **v9.3 models**.
 
 | Metric | Value |
 |--------|-------|
-| Parameters | ~25K |
 | ONNX size | ~128KB (FP32) / ~25KB (INT8) |
 | Desktop inference | <5ms / frame |
 | ESP32-S3 inference | <10ms / frame |
