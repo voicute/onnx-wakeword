@@ -33,17 +33,55 @@ Voicute is an open-source, cross-platform inference engine for custom keyword sp
 
 ## Performance
 
+Tested on **v9.3 Causal DS-TCN models** (~25K params, ~128KB ONNX, 2000 pos + 15000 neg training samples).
+See [models/README.md](models/README.md) for architecture.
+
 | Metric | Value |
 |--------|-------|
-| Model size | ~135KB ONNX (3-keyword) |
 | Parameters | ~25K |
-| Inference (desktop) | <5ms / frame |
-| Inference (ESP32-S3 INT8) | <10ms / frame |
-| Recall | >90% across tested keywords |
-| False triggers (L1+L3) | 0.1–0.3 / hour |
-| Multi-keyword capacity | 2–10+ keywords, single pass |
+| ONNX size | ~128KB (FP32) / ~25KB (INT8) |
+| Desktop inference | <5ms / frame |
+| ESP32-S3 inference | <10ms / frame |
 
-> **v9.3** improved false trigger suppression in quiet environments. L2/L4 now rarely needed. See [models/README.md](models/README.md) for model changelog.
+**Keyword recall** (held-out Azure TTS, 10 speakers × varied speed/pitch/volume):
+
+| Keyword | Language | Recall |
+|---------|:-------:|:------:|
+| 小坦小坦 | ZH | 96.7% |
+| 打开灯光 | ZH | 94.2% |
+| Cyclops | EN | 92.3% |
+| Hey Friday | EN | 91.5% |
+| Hey Limi | EN | 89.9% |
+
+> Real-voice recall reaches 90%+ with 5–20 user recordings added during training.
+
+**False trigger resistance** (20,000 negative WAVs across speech, music, noise, near-wake phrases; threshold 0.5, L1+L3 enabled):
+
+| Metric | Value |
+|--------|-------|
+| Negative accuracy (static test set) | 93–96% |
+| Real-world estimate (quiet indoor) | 0.1–0.3 / hour |
+| With L5 enabled | ~0.1 / hour |
+
+**Anti-false-trigger layers** (quiet-room ambient noise test):
+
+| Configuration | FA / Hour | Reduction |
+|:---|:---:|:---:|
+| Off | ~2.5 | — |
+| L1 | ~0.7 | -72% |
+| L1 + L3 | ~0.2 | -91% |
+| L1 + L3 + L5 | ~0.1 | -96% |
+
+**vs OpenWakeWord** (same Cyclops keyword, same test sets):
+
+| Metric | Voicute (v9.3) | OpenWakeWord |
+|--------|:---:|:---:|
+| Cyclops recall | **92.3%** | 37–41% |
+| Negative accuracy (20K neg) | **93–96%** | 2.1–3.9 FA / hr |
+| Model size | **128KB** | ~800KB |
+| Training time | **~30 min** | ~75–90 min |
+| Multi-language | ✅ 150+ languages | ❌ English only |
+| Per-word quality | ✅ Stable 90%+ | ⚠️ Varies 50–80% |
 
 ---
 
