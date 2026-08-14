@@ -55,7 +55,7 @@
 
 ## 获取 ONNX 模型
 
-模型统一在 [voicute.com](https://www.voicute.com) 平台训练生成：输入关键词或唤醒词，自动生成 ONNX 模型。
+模型统一在 [voicute.com](https://www.voicute.com) 平台训练生成：输入关键词或唤醒词，自动生成 ONNX 模型。**无需上传任何音频**——模型由合成语音（TTS）训练生成，无需录音即可训练关键词。
 
 ## 模型文件
 
