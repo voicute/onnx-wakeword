@@ -57,7 +57,7 @@ Tested on **v9.3 models**.
 
 > Across 20 recently trained keywords (5 languages): recall 90.3%–100%, mean 98.8%, 20/20 ≥ 90%.
 
-> Real-voice recall reaches 90%+ with 5–20 user recordings added during training.
+> Real-voice recall reaches 90%+ with 5 user recordings added during training.
 
 **False trigger resistance** (validated on ~25,000 held-out negatives across speech, music, noise, near-wake phrases; threshold 0.5):
 
@@ -74,8 +74,6 @@ Tested on **v9.3 models**.
 ## Getting a Model
 
 Models are trained on the [voicute.com](https://www.voicute.com) platform — type your keyword, get an ONNX model in minutes.
-
-> This inference engine is Voicute-specific (Causal DS-TCN + MultiProto architecture, v9.3). Models must be trained on the Voicute platform; ONNX models exported by third-party frameworks such as OpenWakeWord or MicroWakeWord use a different architecture and are not compatible.
 
 ### Model files
 
