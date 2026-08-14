@@ -75,6 +75,10 @@ Tested on **v9.3 models**.
 
 Models are trained on the [voicute.com](https://www.voicute.com) platform — type your keyword, get an ONNX model in minutes. **No audio upload required** — the model is generated from synthesized speech (TTS), so you can train a keyword without recording your voice.
 
+- **Basic** — type a keyword, get a model with 90%+ recall in ~30 minutes. Trained entirely on synthesized speech; no audio upload, no recordings.
+- **Voice enhancement** — add ~5 of your own recordings for pronunciation-challenged keywords (accents, children's voices, unusual pronunciations). Generalizes to other speakers and lifts real-voice recall.
+- **Multi-keyword** — one model that detects 2–10+ keywords at once, sharing a single compact backbone instead of stacking separate models.
+
 ### Model files
 
 You need two files:
