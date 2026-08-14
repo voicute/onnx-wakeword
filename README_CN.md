@@ -1,13 +1,13 @@
 # 轻量离线关键词识别 / 唤醒词 / 语音唤醒
 
 
-`唤醒词` · `关键词识别` · `语音唤醒` · `自定义唤醒词` · `离线语音识别` · `KWS` · `Keyword Spotting` · `Wake Word` · `ONNX` · `端侧推理` · `ESP32` · `Android` · `开源`
+`KWS` · `关键词识别` · `唤醒词` · `语音唤醒` · `自定义唤醒词` · `离线语音识别` · `Keyword Spotting` · `Wake Word` · `ONNX` · `端侧推理` · `ESP32` · `Android` · `开源`
 
 > **离线运行 · 模型 < 130KB · 不上传音频 · ESP32/Android/Python/Web 全平台**
 
 [:us: English](README.md)
 
-本仓库提供各平台的开源唤醒词/关键词识别推理代码。支持自定义唤醒词，拿到 ONNX 模型就能在 Android、Web、Python (Linux/Windows/macOS)、ESP32 上跑离线语音识别和语音唤醒，不依赖云端。
+本仓库提供 Voicute 关键词识别（KWS）/唤醒词的各平台开源推理引擎。支持自定义关键词，模型统一在 Voicute 平台训练生成，任意关键词稳定召回 90%+，拿到 ONNX 模型即可在 Android、Web、Python (Linux/Windows/macOS)、ESP32 上离线运行，不依赖云端。目前支持中文、英文、日语、法语、德语。
 
 ## 性能数据
 
@@ -19,15 +19,21 @@
 | 桌面推理 | <5ms / 帧 |
 | ESP32-S3 推理 | <10ms / 帧 |
 
-**关键词召回率**（Azure TTS 留出集，10 发音人 × 多种语速/音调/音量）：
+**关键词召回率**（Azure TTS 留出集，10 发音人 × 多种语速/音调/音量；滑动窗口峰值检测）：
 
 | 关键词 | 语言 | 召回率 |
 |---------|:---:|:------:|
-| 小坦小坦 | 中文 | 96.7% |
-| 打开灯光 | 中文 | 94.2% |
-| Cyclops | 英文 | 92.3% |
-| Hey Friday | 英文 | 91.5% |
-| Hey Limi | 英文 | 89.9% |
+| 小坦小坦 | 中文 | 100% |
+| 元宝元宝 | 中文 | 100% |
+| 你好琥珀 | 中文 | 100% |
+| 小黑 | 中文 | 97.4% |
+| Hey Robot | 英文 | 100% |
+| サクラ (Sakura) | 日语 | 100% |
+| Apfelstrudel | 德语 | 99.4% |
+| Monsieur Sadin | 法语 | 100% |
+| Croissant | 法语 | 90.3% |
+
+> 近 20 个已训练关键词（5 种语言）实测：召回率 90.3%–100%，均值 98.8%，20/20 ≥ 90%。
 
 > 加入 5–20 条用户录音做语音增强训练后，真人召回可达 90%+。
 
@@ -39,7 +45,7 @@
 
 > **负样本挖掘与增强训练**（开发中）：针对单个关键词的误触发问题，后续将支持用户收集误触发音频，作为增强负样本加入训练，持续提升关键词准确率。
 
-> 单个关键词训练耗时约 30 分钟。支持中文、英文及 150+ 语言。
+> 单个关键词训练耗时约 30 分钟。目前支持中文、英文、日语、法语、德语 5 种语言。
 
 ## Web Demo
 
@@ -49,29 +55,18 @@
 
 ## 获取 ONNX 模型
 
-你可以自己训练，也可以使用在线服务生成。
+模型统一在 [voicute.com](https://www.voicute.com) 平台训练生成：输入关键词或唤醒词，自动生成 ONNX 模型。
 
-### 自己训练
-
-以下工具都能导出 ONNX 唤醒词模型：
-
-- [OpenWakeWord](https://github.com/dscripka/openWakeWord) — 开源，家居场景，支持多唤醒词
-- [MicroWakeWord](https://github.com/kahrendt/microWakeWord) — 专为 ESP32 等 MCU 设计
-- [NanoWakeWord](https://github.com/arcosoph/nanowakeword) — 11 种架构可选，模型极小(40KB)
-- 任何能导出 ONNX 的 KWS 训练框架均可
-
-### 在线生成
-
-[voicute.com](https://www.voicute.com) 输入唤醒词或关键词，自动生成 ONNX 模型。
+> 本推理引擎为 Voicute 专用（Causal DS-TCN + MultiProto 架构，v9.3），模型需在 Voicute 平台训练。OpenWakeWord、MicroWakeWord 等第三方框架导出的 ONNX 模型架构不同，暂不兼容。
 
 ## 模型文件
 
-无论用哪个工具训练，最终需要两个文件：
+每个模型需要两个文件：
 
 | 文件 | 说明 |
 |------|------|
 | `melspectrogram.onnx` | 音频 → 梅尔频谱，通用模块，**本仓库已提供** |
-| `你的模型.onnx` | 唤醒词推理模型，训练或在线生成获取 |
+| `你的模型.onnx` | 关键词推理模型，由 Voicute 平台训练生成 |
 
 外加一个 `model_info.json` 描述模型配置。
 
@@ -90,7 +85,7 @@
 }
 ```
 
-多个唤醒词：
+多个关键词：
 
 ```json
 {

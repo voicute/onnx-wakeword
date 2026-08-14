@@ -1,12 +1,12 @@
-# Voicute — Offline Keyword Spotting & Wake Word Engine
+# Voicute — Offline Keyword Spotting (KWS) & Wake Word Engine
 
 [中文文档](README_CN.md)
 
-`Keyword Spotting` · `Wake Word` · `KWS` · `ONNX` · `Edge AI` · `ESP32` · `Android` · `Offline` · `Open Source`
+`KWS` · `Keyword Spotting` · `Wake Word` · `ONNX` · `Edge AI` · `ESP32` · `Android` · `Offline` · `Open Source`
 
 > **100% offline · Model < 130KB · No cloud dependency · ESP32 / Android / Python / Web**
 
-Voicute is an open-source, cross-platform inference engine for custom keyword spotting and wake word detection. Bring your own ONNX model — or [generate one online](https://www.voicute.com) — and run **fully offline** on ESP32, Android, Web, or desktop.
+Voicute is an open-source, cross-platform inference engine for custom keyword spotting (KWS), including wake words. Models are trained on the [Voicute platform](https://www.voicute.com) — any keyword with 90%+ stable recall — then run **fully offline** on ESP32, Android, Web, or desktop. Currently supports Chinese, English, Japanese, French, and German.
 
 ---
 
@@ -25,7 +25,7 @@ Voicute is an open-source, cross-platform inference engine for custom keyword sp
 
 - **Sub-130KB models** — 25K parameters, fits ESP32 INT8 flash
 - **Multi-keyword** — detect 2–10+ keywords with a single model
-- **Multi-language** — Chinese, English, and 150+ languages via custom training
+- **Multi-language** — Chinese, English, Japanese, French, and German
 - **5-layer anti-false-trigger** — consecutive frames, peak/background ratio, cooldown, burst detection, energy jump
 - **ZIP packaging** — distribute model + config as a single file
 
@@ -41,15 +41,21 @@ Tested on **v9.3 models**.
 | Desktop inference | <5ms / frame |
 | ESP32-S3 inference | <10ms / frame |
 
-**Keyword recall** (held-out Azure TTS, 10 speakers × varied speed/pitch/volume):
+**Keyword recall** (held-out Azure TTS, 10 speakers × varied speed/pitch/volume; sliding-window peak detection):
 
 | Keyword | Language | Recall |
 |---------|:-------:|:------:|
-| 小坦小坦 | ZH | 96.7% |
-| 打开灯光 | ZH | 94.2% |
-| Cyclops | EN | 92.3% |
-| Hey Friday | EN | 91.5% |
-| Hey Limi | EN | 89.9% |
+| 小坦小坦 | ZH | 100% |
+| 元宝元宝 | ZH | 100% |
+| 你好琥珀 | ZH | 100% |
+| 小黑 | ZH | 97.4% |
+| Hey Robot | EN | 100% |
+| サクラ (Sakura) | JA | 100% |
+| Apfelstrudel | DE | 99.4% |
+| Monsieur Sadin | FR | 100% |
+| Croissant | FR | 90.3% |
+
+> Across 20 recently trained keywords (5 languages): recall 90.3%–100%, mean 98.8%, 20/20 ≥ 90%.
 
 > Real-voice recall reaches 90%+ with 5–20 user recordings added during training.
 
@@ -61,23 +67,15 @@ Tested on **v9.3 models**.
 
 > **Negative sample mining** (in development): For individual keywords experiencing false triggers, we plan to collect user-reported false trigger audio and feed it back into training as weighted hard negatives, continuously improving per-keyword accuracy.
 
-> Training takes ~30 minutes per keyword. Supports Chinese, English, and 150+ languages.
+> Training takes ~30 minutes per keyword. Currently supports Chinese, English, Japanese, French, and German (5 languages).
 
 ---
 
 ## Getting a Model
 
-### Online (recommended)
+Models are trained on the [voicute.com](https://www.voicute.com) platform — type your keyword, get an ONNX model in minutes.
 
-Go to [voicute.com](https://www.voicute.com), type your keyword, get an ONNX model in minutes.
-
-### Train yourself
-
-Any KWS framework that exports ONNX works:
-
-- [OpenWakeWord](https://github.com/dscripka/openWakeWord)
-- [MicroWakeWord](https://github.com/kahrendt/microWakeWord)
-- [NanoWakeWord](https://github.com/arcosoph/nanowakeword)
+> This inference engine is Voicute-specific (Causal DS-TCN + MultiProto architecture, v9.3). Models must be trained on the Voicute platform; ONNX models exported by third-party frameworks such as OpenWakeWord or MicroWakeWord use a different architecture and are not compatible.
 
 ### Model files
 
@@ -86,7 +84,7 @@ You need two files:
 | File | Purpose |
 |------|---------|
 | `melspectrogram.onnx` | Audio → mel spectrogram (provided in this repo) |
-| `your_model.onnx` | The keyword model (train or generate) |
+| `your_model.onnx` | The keyword model (trained on the Voicute platform) |
 
 Plus a `model_info.json`:
 
@@ -189,6 +187,6 @@ onnx-wakeword/
 
 ## Version
 
-**v9.3 (2026-06)** — Multi-keyword support, English wake words, false-trigger improvements.
+**v9.3 (2026-06)** — Multi-keyword support, English keywords, false-trigger improvements.
 
 See [models/README.md](models/README.md) for model changelog.
