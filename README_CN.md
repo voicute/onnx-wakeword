@@ -7,7 +7,7 @@
 
 [:us: English](README.md)
 
-本仓库提供 Voicute 关键词识别（KWS）/唤醒词的各平台开源推理引擎。支持自定义关键词，模型统一在 Voicute 平台训练生成，任意关键词稳定召回 90%+，拿到 ONNX 模型即可在 Android、Web、Python (Linux/Windows/macOS)、ESP32 上离线运行，不依赖云端。目前支持中文、英文、日语、法语、德语。
+本仓库提供**唤醒词 / 关键词识别（KWS）**的开源 ONNX 模型推理引擎，基于**因果时序卷积网络（Causal TCN，约 2.5 万参数）** + Mel 频谱前端，在端侧实时推理。TCN 模型在 [Voicute 平台](https://www.voicute.com) 生成，导出 <130KB 的 ONNX 模型，即可在 Android、Web、Python (Linux/Windows/macOS)、ESP32 上完全离线运行。目前支持中文、英文、日语、法语、德语。
 
 ## 性能数据
 

@@ -6,7 +6,7 @@
 
 > **100% offline · Model < 130KB · No audio upload · ESP32 / Android / Python / Web**
 
-Voicute is an open-source, cross-platform inference engine for custom keyword spotting (KWS), including wake words. Models are trained on the [Voicute platform](https://www.voicute.com) — any keyword with 90%+ stable recall — then run **fully offline** on ESP32, Android, Web, or desktop. Currently supports Chinese, English, Japanese, French, and German.
+Voicute is an open-source ONNX inference engine for **wake words and keyword spotting (KWS)**. It runs a **causal temporal convolutional network (Causal TCN, ~25K parameters)** with a mel-spectrogram frontend for on-device inference. TCN models are generated on the [Voicute platform](https://www.voicute.com) and exported as sub-130KB ONNX models that run **fully offline** on ESP32, Android, Web, or desktop. Currently supports Chinese, English, Japanese, French, and German.
 
 ---
 
