@@ -1,10 +1,13 @@
 {
-  "model_type": "multi_keyword",
-  "keywords": ["小娜", "你好小娜", "小娜小娜"],
-  "model_file": "multi_xiaona.onnx",
-  "arch": "causal-ds-tcn-multi",
-  "K": 3,
-  "cons_frames": 2,
+  "model_type": "tcn",
   "mel_time": 98,
-  "n_mels": 32
+  "version": "9.3",
+  "multi_model": true,
+  "models": [
+    {
+      "wake_word": "hey limi",
+      "model_file": "zh/hey_limi.onnx",
+      "cons_frames": 2
+    }
+  ]
 }
