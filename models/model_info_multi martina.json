@@ -1,0 +1,27 @@
+{
+  "model_type": "multi_keyword",
+  "keywords": [
+    "Martina",
+    "Tina",
+    "Hey Tina"
+  ],
+  "model_file": "de/multi_martina.onnx",
+  "arch": "causal-ds-tcn-multi",
+  "K": 3,
+  "cons_frames": 2,
+  "mel_time": 98,
+  "n_mels": 32,
+  "params": {
+    "backbone": 23216,
+    "heads": {
+      "Martina": 773,
+      "Tina": 773,
+      "Hey Tina": 773
+    },
+    "total_head": 2319,
+    "total": 25535
+  },
+  "model_size": {
+    "onnx_kb": 134.6
+  }
+}

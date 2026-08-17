@@ -1,0 +1,27 @@
+{
+  "model_type": "multi_keyword",
+  "keywords": [
+    "小娜",
+    "你好小娜",
+    "小娜小娜"
+  ],
+ "model_file": "zh/multi_xiaona.onnx",
+  "arch": "causal-ds-tcn-multi",
+  "K": 3,
+  "cons_frames": 2,
+  "mel_time": 98,
+  "n_mels": 32,
+  "params": {
+    "backbone": 23216,
+    "heads": {
+      "小娜": 773,
+      "你好小娜": 773,
+      "小娜小娜": 773
+    },
+    "total_head": 2319,
+    "total": 25535
+  },
+  "model_size": {
+    "onnx_kb": 135.0
+  }
+}
