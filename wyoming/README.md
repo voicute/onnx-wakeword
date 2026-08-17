@@ -7,6 +7,30 @@ Compatible with **Home Assistant** Wyoming integration.
 
 The repo ships demo models under [`../models/`](../models/) — **hey limi** (zh), **Hey Friday** (en), **曼波** (zh), **Apfelstrudel** (de), **Monsieur Sadin / Croissant** (fr). Full list + changelog: [`../models/README.md`](../models/README.md). Get your own keyword model at [voicute.com](https://www.voicute.com).
 
+### Multi-keyword models
+
+Two multi-keyword configs are also provided — a **single model** that detects several wake words at once (`model_type: "multi_keyword"`):
+
+| Config | Wake words | Model |
+| ------ | ---------- | ----- |
+| `models/model_info_multi.json` | 小娜 · 你好小娜 · 小娜小娜 | `zh/multi_xiaona.onnx` |
+| `models/model_info_multi martina.json` | Martina · Tina · Hey Tina | `de/multi_martina.onnx` |
+
+Start one by pointing `--model-info` at it:
+
+```bash
+# Chinese multi-keyword: 小娜 / 你好小娜 / 小娜小娜
+python wyoming/wyoming_voicute.py \
+    --model-info models/model_info_multi.json \
+    --mel models/melspectrogram.onnx
+
+# German multi-keyword: Martina / Tina / Hey Tina
+# (note: quote the path — the config filename contains a space)
+python wyoming/wyoming_voicute.py \
+    --model-info "models/model_info_multi martina.json" \
+    --mel models/melspectrogram.onnx
+```
+
 ## Quick Start
 
 From the repo root:
