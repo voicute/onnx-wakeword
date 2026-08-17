@@ -3,18 +3,23 @@
 Wyoming protocol server for [Voicute](https://github.com/voicute/onnx-wakeword) wake word models.
 Compatible with **Home Assistant** Wyoming integration.
 
+## Demo models
+
+The repo ships demo models under [`../models/`](../models/) — **hey limi** (zh), **Hey Friday** (en), **曼波** (zh), **Apfelstrudel** (de), **Monsieur Sadin / Croissant** (fr). Full list + changelog: [`../models/README.md`](../models/README.md). Get your own keyword model at [voicute.com](https://www.voicute.com).
+
 ## Quick Start
 
+From the repo root:
+
 ```bash
-# Install
 pip install onnxruntime numpy
 
-# Run
-python wyoming_voicute.py \
+python wyoming/wyoming_voicute.py \
     --model-info models/model_info.json \
-    --mel models/melspectrogram.onnx \
-    --preload "Hey Friday"
+    --mel models/melspectrogram.onnx
 ```
+
+This starts the service with the bundled demo keyword (**hey limi**) on `tcp://0.0.0.0:10400`. For your own model, point `--model-info` at its `model_info.json` and keep the `.onnx` files beside it.
 
 ## Home Assistant Setup
 
@@ -32,6 +37,8 @@ python wyoming_voicute.py \
    - Port: 10400
 
 3. Select "Voicute" as the wake word engine in your voice pipeline.
+
+> **Note:** the service does not advertise itself via mDNS yet, so Home Assistant will **not** auto-discover it — add it manually with the host IP and port above.
 
 ## Options
 
@@ -53,12 +60,13 @@ python wyoming_voicute.py \
 ```bash
 docker pull voicute/voicute-wyoming:latest
 
-docker run --rm --network host \
-    -v $(pwd)/models:/models \
+docker run -d --name voicute-wakeword --restart unless-stopped --network host \
+    -v /path/to/your/models:/models \
     voicute/voicute-wyoming:latest \
-    --model-info /models/model_info.json \
-    --mel /models/melspectrogram.onnx
+    --model-info /models/model_info.json --mel /app/models/melspectrogram.onnx
 ```
+
+The image bundles `melspectrogram.onnx` (and a demo `model_info.json`) under `/app/models/`, so you only need to mount your own `model_info.json` + keyword `.onnx`.
 
 ### Or build locally
 
@@ -79,3 +87,7 @@ docker compose up -d
 ```
 
 Edit `docker-compose.yml` to set your model path, then in Home Assistant add a Wyoming service at `host:10400`.
+
+## Home Assistant Add-on
+
+A Supervisor add-on is provided under [`../ha-addon/`](../ha-addon/) for HAOS / Supervised installs. Add the repository `https://github.com/voicute/ha-addons` to the add-on store, install **"Voicute Wake Word"**, and start it — it ships with the demo keyword and the universal mel model, so it works out of the box. See [`../ha-addon/voicute-wyoming/README.md`](../ha-addon/voicute-wyoming/README.md).

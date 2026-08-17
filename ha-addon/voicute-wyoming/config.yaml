@@ -9,13 +9,9 @@ arch:
 startup: application
 boot: auto
 host_network: true
-ports:
-  10400/tcp: 10400
-ports_description:
-  10400/tcp: "Wyoming protocol"
 options:
-  model_info: "/data/model_info.json"
-  mel: "/data/melspectrogram.onnx"
+  model_info: "/app/models/model_info.json"
+  mel: "/app/models/melspectrogram.onnx"
   threshold: 0.4
   cooldown: 1500
   L1: true

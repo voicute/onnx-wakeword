@@ -12,18 +12,20 @@ Custom wake word detection for Home Assistant, powered by Voicute.
 
 ## Setup
 
-1. Install this add-on
-2. Upload your `model_info.json` and `.onnx` model files to `/data/` (or `/share/voicute/`)
-3. Configure the paths in the add-on options
-4. Start the add-on
-5. In Home Assistant → Settings → Voice assistants → Add Wyoming, it should auto-discover
+1. Add this repository to Home Assistant (Supervisor → Add-on store → ⋮ → Repositories)
+2. Install the "Voicute Wake Word" add-on and start it
+3. It ships with a demo keyword (`hey limi`) and the universal mel model, so it works out of the box
+4. In Home Assistant → Settings → Devices & services → Add Integration → **Wyoming Protocol**, enter the HA host IP and port `10400`
+5. Pick "Voicute" as the wake word engine in your voice assistant's wake-word configuration
+
+> **Custom keyword**: upload your `model_info.json` + `.onnx` model to `/data/` (via the Samba/SSH/File editor add-ons), then set the `model_info` option to `/data/model_info.json`.
 
 ## Configuration
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `model_info` | `/data/model_info.json` | Path to model configuration |
-| `mel` | `/data/melspectrogram.onnx` | Path to mel spectrogram ONNX |
+| `model_info` | `/app/models/model_info.json` | Bundled demo model; point to `/data/...` for custom |
+| `mel` | `/app/models/melspectrogram.onnx` | Universal mel model (bundled, no upload needed) |
 | `threshold` | `0.4` | Detection threshold (0–1) |
 | `cooldown` | `1500` | Cooldown in ms between triggers |
 | `L1` | `true` | Consecutive frames filter |

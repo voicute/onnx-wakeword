@@ -1,7 +1,12 @@
 FROM voicute/voicute-wyoming:1.0.0
 
-# Copy add-on run script
-COPY run.sh /run.sh
-RUN chmod a+x /run.sh
+# Add-on entrypoint: reads Home Assistant options from /data/options.json and
+# launches the Wyoming service. Plain Python (no bash/bashio) — the base image
+# is python:3.10-slim, which has neither.
+COPY entrypoint.py /entrypoint.py
+RUN chmod a+x /entrypoint.py
 
-CMD ["/run.sh"]
+# Override the base image's ENTRYPOINT (python wyoming/wyoming_voicute.py),
+# otherwise CMD below would be appended to it as an argument.
+ENTRYPOINT ["python", "/entrypoint.py"]
+CMD []

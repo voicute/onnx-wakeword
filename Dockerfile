@@ -5,6 +5,9 @@ WORKDIR /app
 COPY python/ ./python/
 COPY wyoming/ ./wyoming/
 COPY models/melspectrogram.onnx ./models/
+# Bundle a demo keyword so the image (and the HA add-on) works out of the box.
+COPY models/model_info.json ./models/
+COPY models/zh/hey_limi.onnx ./models/zh/
 
 RUN pip install --no-cache-dir onnxruntime numpy
 

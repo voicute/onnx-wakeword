@@ -18,6 +18,7 @@ Voicute is an open-source ONNX inference engine for **wake words and keyword spo
 | **Python** | [`python/`](python/) | `wakeword_engine.py` → `WakeWordEngine()` |
 | **Android** | [`android/`](android/) | `WakeWordEngine.java` |
 | **ESP32** | [`esp32/`](esp32/) | ESP-IDF component |
+| **Home Assistant** | [`wyoming/`](wyoming/) | `wyoming_voicute.py` → Wyoming protocol |
 
 ---
 
@@ -28,6 +29,7 @@ Voicute is an open-source ONNX inference engine for **wake words and keyword spo
 - **Multi-language** — Chinese, English, Japanese, French, and German
 - **5-layer anti-false-trigger** — consecutive frames, peak/background ratio, cooldown, burst detection, energy jump
 - **ZIP packaging** — distribute model + config as a single file
+- **Home Assistant** — native Wyoming protocol service, Docker image, and HA add-on
 
 ---
 
@@ -156,6 +158,29 @@ engine.load("model_info.json", "melspectrogram.onnx");
 DetectionResult result = engine.process(audioChunk);
 ```
 
+### Home Assistant (Wyoming)
+
+A [Wyoming protocol](https://github.com/rhasspy/wyoming) service is included, so Home Assistant can use Voicute as a native wake-word engine — no add-on required, and it works on every HA install type (HAOS / Supervised / Container / Core).
+
+**1. Run the service (Docker):**
+
+```bash
+docker run -d --name voicute-wakeword --restart unless-stopped --network host \
+  -v /path/to/your/models:/models \
+  voicute/voicute-wyoming:latest \
+  --model-info /models/model_info.json --mel /app/models/melspectrogram.onnx
+```
+
+`melspectrogram.onnx` is bundled in the image — mount only your `model_info.json` + keyword `.onnx`.
+
+**2. Add it to Home Assistant:**
+
+Settings → Devices & services → Add Integration → **Wyoming Protocol** → host `IP` + port `10400`.
+
+**3. Select the wake word** in Settings → Voice assistants → your assistant → Wake word.
+
+Full guide (live-mic test, docker-compose, Home Assistant add-on): [`wyoming/README.md`](wyoming/README.md).
+
 ---
 
 ## Anti-False-Trigger Layers
@@ -182,6 +207,9 @@ onnx-wakeword/
 ├── web/         # Web (JavaScript, ONNX Runtime Web)
 ├── python/      # Linux / Windows / macOS (Python)
 ├── esp32/       # ESP32-S3/P4 (ESP-IDF)
+├── wyoming/     # Home Assistant (Wyoming protocol service)
+├── ha-addon/    # Home Assistant add-on
+├── Dockerfile   # Docker image (voicute/voicute-wyoming)
 └── models/      # Demo models
 ```
 

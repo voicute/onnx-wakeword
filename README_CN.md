@@ -109,6 +109,9 @@ onnx-wakeword/
 ├── web/         # Web (JavaScript, ONNX Runtime Web)
 ├── python/      # Linux / Windows / macOS (Python)
 ├── esp32/       # ESP32-S3/P4
+├── wyoming/     # Home Assistant（Wyoming 协议服务）
+├── ha-addon/    # Home Assistant 加载项
+├── Dockerfile   # Docker 镜像（voicute/voicute-wyoming）
 └── models/      # 测试用模型和配置（不提交 git）
 ```
 
@@ -119,6 +122,7 @@ onnx-wakeword/
 | Android | `android/` | `WakeWordEngine.java` |
 | Web | `web/` | `wakeword.js` → `VoicuteWakeWord.create()` |
 | Python | `python/` | `wakeword_engine.py` → `WakeWordEngine()` |
+| Home Assistant | `wyoming/` | `wyoming_voicute.py` → Wyoming 协议 |
 
 ### Web
 
@@ -165,6 +169,29 @@ engine.start(lambda word, prob, info: print(f'{word}'))
 WakeWordEngine engine = new WakeWordEngine(context);
 DetectionResult result = engine.process(audioChunk);
 ```
+
+### Home Assistant（Wyoming 协议）
+
+内置 [Wyoming 协议](https://github.com/rhasspy/wyoming) 服务，可直接接入 Home Assistant 作为唤醒词引擎——不需要 add-on，所有 HA 安装方式（HAOS / Supervised / Container / Core）都支持。
+
+**1. 启动服务（Docker）：**
+
+```bash
+docker run -d --name voicute-wakeword --restart unless-stopped --network host \
+  -v /你的模型目录:/models \
+  voicute/voicute-wyoming:latest \
+  --model-info /models/model_info.json --mel /app/models/melspectrogram.onnx
+```
+
+`melspectrogram.onnx` 已内置在镜像里，只需挂载你自己的 `model_info.json` + 关键词 `.onnx`。
+
+**2. 在 Home Assistant 里添加：**
+
+设置 → 设备与服务 → 添加集成 → **Wyoming Protocol** → 填主机 `IP` + 端口 `10400`。
+
+**3. 语音助手选唤醒词：** 设置 → 语音助手 → 你的助手 → Wake word。
+
+完整指南（麦克风实时测试、docker-compose、Home Assistant 加载项）：[`wyoming/README.md`](wyoming/README.md)。
 
 ## 防误触发检测层
 

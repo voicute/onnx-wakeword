@@ -20,6 +20,7 @@ SAMPLE_RATE = 16000
 MEL_HOP = 160
 MEL_WIN = 400
 N_MELS = 32
+MAX_GAP = 2  # L1 consecutive-frames gap tolerance, matches android DetectionLogic
 
 
 class WakeWordEngine:
@@ -36,6 +37,7 @@ class WakeWordEngine:
         # Detection state
         self.cons = 0
         self.cons_word = ''
+        self.cons_gap = 0
         self.last_trig = 0
         self.blocked = 0
         self.bg_ema = 0.001
@@ -155,7 +157,7 @@ class WakeWordEngine:
                 for i, kw in enumerate(self.keywords):
                     scores.append(float(data[i]))
                     words.append(kw)
-                    cf_list.append(2)
+                    cf_list.append(self.models[i]['cons_frames'])
             # Legacy: loop over multiple models
             else:
                 for m in self.models:
@@ -190,13 +192,15 @@ class WakeWordEngine:
         """Run detection pipeline. Returns detected word or None."""
         if now is None:
             now = time.time() * 1000
-        if not word or prob < self.threshold:
-            self.cons = 0; self.cons_word = ''; return None
+        if not word:
+            self.cons = 0; self.cons_word = ''; self.cons_gap = 0; return None
         if now < self.blocked:
-            self.cons = 0; self.cons_word = ''; return None
+            self.cons = 0; self.cons_word = ''; self.cons_gap = 0; return None
 
-        # L5: energy jump
-        if self.L5 and self.l5_rms > 0:
+        hi = prob > self.threshold and word
+
+        # L5: energy jump (only for candidate frames above threshold)
+        if hi and self.L5 and self.l5_rms > 0:
             ps, pe = now - 2000, now - 500
             mask = (self.rms_t_hist > 0) & (self.rms_t_hist >= ps) & (self.rms_t_hist <= pe)
             pN = mask.sum()
@@ -207,19 +211,23 @@ class WakeWordEngine:
                 if not block and pMin < 50 and self.l5_rms < 80:
                     block = True
                 if block:
-                    self.cons = 0; self.cons_word = ''; return None
+                    self.cons = 0; self.cons_word = ''; self.cons_gap = 0; return None
 
-        # L1: consecutive frames
+        # L1: consecutive frames — allow brief gaps (MAX_GAP), matching android/web
         if self.L1:
-            hi = prob > self.threshold and word
             if hi and word == self.cons_word:
-                self.cons += 1
+                self.cons += 1; self.cons_gap = 0
             elif hi:
-                self.cons_word = word; self.cons = 1
-            else:
-                self.cons = 0; self.cons_word = ''
+                self.cons_word = word; self.cons = 1; self.cons_gap = 0
+            elif self.cons > 0:
+                self.cons_gap += 1
+                if self.cons_gap > MAX_GAP:
+                    self.cons = 0; self.cons_word = ''; self.cons_gap = 0
             if self.cons < cons_frames:
                 return None
+        elif not hi:
+            # L1 disabled: simple threshold gate
+            return None
 
         # L2: peak/background
         if self.L2:
@@ -245,7 +253,7 @@ class WakeWordEngine:
                 self.blocked = now + 5000
                 self.cons = 0; self.cons_word = ''; return None
 
-        self.cons = 0; self.cons_word = ''
+        self.cons = 0; self.cons_word = ''; self.cons_gap = 0
         self.last_trig = now
         return word
 
@@ -309,7 +317,7 @@ class WakeWordEngine:
     # ═══════════════════════════
 
     def _reset(self):
-        self.cons = 0; self.cons_word = ''
+        self.cons = 0; self.cons_word = ''; self.cons_gap = 0
         self.last_trig = 0; self.blocked = 0; self.bg_ema = 0.001
         self.peak_hist.fill(0); self.time_hist.fill(0); self.phi = 0
         self.rms_hist.fill(0); self.rms_t_hist.fill(0); self.l5_ri = 0; self.l5_rms = 0

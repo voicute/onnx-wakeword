@@ -40,7 +40,7 @@ _LOGGER = logging.getLogger("voicute-wyoming")
 # ── Wyoming protocol frame format ──────────────────────────────────────
 # Each frame: uint8 type (0=event, 1=audio) + uint16 payload_len (BE)
 
-STRIDE_SAMPLES = SAMPLE_RATE // 10  # Process every 100ms (1600 samples)
+STRIDE_SAMPLES = SAMPLE_RATE // 20  # Process every 50ms (800 samples), matches web/wakeword.js
 
 
 class VoicuteWyomingService:
@@ -130,11 +130,24 @@ class VoicuteWyomingService:
         chunk = bytes(self._audio[:needed_bytes])
         del self._audio[:stride_bytes]
 
-        audio = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32768.0
+        audio_i16 = np.frombuffer(chunk, dtype=np.int16)
+        # Raw int16 range — matches Android (floatAudio[i]=(float)audio[i]),
+        # Web (input[i]*32767), and python pyaudio path. The mel model expects
+        # int16 PCM, NOT float [-1,1]; dividing by 32768 here made audio 32768×
+        # too quiet (= "gain insufficient" / "needs word-by-word speech").
+        audio = audio_i16.astype(np.float32)
         result = self.engine.predict(audio)
 
         if result is None:
             return
+
+        # Feed the L5 energy-jump filter with this window's RMS. Kept in int16
+        # units to match the pyaudio path, so L5's thresholds stay calibrated.
+        rms = float(np.sqrt(np.mean(audio_i16.astype(np.float32) ** 2)))
+        self.engine.l5_rms = rms
+        self.engine.rms_hist[self.engine.l5_ri] = rms
+        self.engine.rms_t_hist[self.engine.l5_ri] = time.time() * 1000
+        self.engine.l5_ri = (self.engine.l5_ri + 1) % 128
 
         word, prob = result["word"], result["prob"]
         detected = self.engine.detect(word, prob, result["cons_frames"])
