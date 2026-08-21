@@ -1,4 +1,4 @@
-# Voicute — Offline Keyword Spotting (KWS) & Wake Word Engine
+# onnx-wakeword — Offline Wake Word & Keyword Spotting Inference Engine
 
 [中文文档](README_CN.md)
 
@@ -6,7 +6,17 @@
 
 > **100% offline · Model < 130KB · No audio upload · ESP32 / Android / Python / Web**
 
-Voicute is an open-source ONNX inference engine for **wake words and keyword spotting (KWS)**. It runs a **causal temporal convolutional network (Causal TCN, ~25K parameters)** with a mel-spectrogram frontend for on-device inference. TCN models are generated on the [Voicute platform](https://www.voicute.com) and exported as sub-130KB ONNX models that run **fully offline** on ESP32, Android, Web, or desktop. Currently supports Chinese, English, Japanese, French, and German.
+onnx-wakeword is an open-source, fully offline inference engine for **wake-word detection and keyword spotting (KWS)**.
+
+It provides the complete runtime path from audio preprocessing and Mel feature extraction to model execution, matched-head evaluation, and wake-word detection logic. The runtime is designed primarily for keyword models using a **causal temporal convolutional network (Causal TCN)** with a matched classification or prototype-based head.
+
+The repository includes ONNX runtimes for Python, Web, and Android, plus an optimized INT8 TFLite runtime for ESP32-S3. All inference runs locally without uploading audio.
+
+### Inference pipeline
+
+```text
+Audio → Mel features → Keyword TCN model → Matched classification/prototype head → Detection logic → Result
+```
 
 ---
 
@@ -41,7 +51,7 @@ Tested on **v9.3 models**.
 |--------|-------|
 | ONNX size | ~128KB (FP32) / ~74KB (INT8) |
 | Desktop inference | <5ms / frame |
-| ESP32-S3 inference | <10ms / frame |
+| ESP32-S3 TFLite Invoke (included demo) | ~155ms / frame |
 
 **Keyword recall** (held-out Azure TTS, 10 speakers × varied speed/pitch/volume; sliding-window peak detection):
 
@@ -73,13 +83,11 @@ Tested on **v9.3 models**.
 
 ---
 
-## Getting a Model
+## Models
 
-Models are trained on the [voicute.com](https://www.voicute.com) platform — type your keyword, get an ONNX model in minutes. **No audio upload required** — the model is generated from synthesized speech (TTS), so you can train a keyword without recording your voice.
+onnx-wakeword is an inference-only open-source project. A compatible keyword model and its matched classification head are required at runtime.
 
-- **Basic** — type a keyword, get a model with 90%+ recall in ~30 minutes. Trained entirely on synthesized speech; no audio upload, no recordings.
-- **Voice enhancement** — add ~5 of your own recordings for pronunciation-challenged keywords (accents, children's voices, unusual pronunciations). Generalizes to other speakers and lifts real-voice recall.
-- **Multi-keyword** — one model that detects 2–10+ keywords at once, sharing a single compact backbone instead of stacking separate models.
+To create a compatible custom wake-word model, use the [Voicute Online Model Builder](https://www.voicute.com).
 
 ### Model files
 
@@ -88,7 +96,7 @@ You need two files:
 | File | Purpose |
 |------|---------|
 | `melspectrogram.onnx` | Audio → mel spectrogram (provided in this repo) |
-| `your_model.onnx` | The keyword model (trained on the Voicute platform) |
+| `your_model.onnx` | A compatible keyword inference model |
 
 Plus a `model_info.json`:
 
@@ -160,7 +168,7 @@ DetectionResult result = engine.process(audioChunk);
 
 ### Home Assistant (Wyoming)
 
-A [Wyoming protocol](https://github.com/rhasspy/wyoming) service is included, so Home Assistant can use Voicute as a native wake-word engine — no add-on required, and it works on every HA install type (HAOS / Supervised / Container / Core).
+A [Wyoming protocol](https://github.com/rhasspy/wyoming) service is included, so Home Assistant can use onnx-wakeword as a native wake-word engine — no add-on required, and it works on every HA install type (HAOS / Supervised / Container / Core).
 
 **1. Run the service (Docker):**
 

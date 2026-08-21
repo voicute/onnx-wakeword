@@ -1,4 +1,4 @@
-# 轻量离线关键词识别 / 唤醒词 / 语音唤醒
+# onnx-wakeword — 离线唤醒词与关键词推理引擎
 
 
 `KWS` · `关键词识别` · `唤醒词` · `语音唤醒` · `自定义唤醒词` · `离线语音识别` · `Keyword Spotting` · `Wake Word` · `ONNX` · `端侧推理` · `ESP32` · `Android` · `开源`
@@ -7,7 +7,17 @@
 
 [:us: English](README.md)
 
-本仓库提供**唤醒词 / 关键词识别（KWS）**的开源 ONNX 模型推理引擎，基于**因果时序卷积网络（Causal TCN，约 2.5 万参数）** + Mel 频谱前端，在端侧实时推理。TCN 模型在 [Voicute 平台](https://www.voicute.com) 生成，导出 <130KB 的 ONNX 模型，即可在 Android、Web、Python (Linux/Windows/macOS)、ESP32 上完全离线运行。目前支持中文、英文、日语、法语、德语。
+onnx-wakeword 是一个开源、完全离线的**唤醒词与关键词检测（KWS）推理引擎**。
+
+项目提供从音频预处理、Mel 特征提取、模型执行、配套分类头计算到唤醒判定的完整运行时，主要面向采用**因果时序卷积网络（Causal TCN）**及配套分类头或原型头的关键词模型。
+
+仓库提供 Python、Web、Android 的 ONNX 推理实现，以及针对 ESP32-S3 优化的 INT8 TFLite 推理实现。所有推理均在本地完成，不需要上传音频。
+
+### 推理流程
+
+```text
+音频 → Mel 特征 → 关键词 TCN 模型 → 配套分类头或原型头 → 检测逻辑 → 识别结果
+```
 
 ## 性能数据
 
@@ -17,7 +27,7 @@
 |------|------|
 | ONNX 大小 | ~128KB (FP32) / ~74KB (INT8) |
 | 桌面推理 | <5ms / 帧 |
-| ESP32-S3 推理 | <10ms / 帧 |
+| ESP32-S3 TFLite Invoke（内置 Demo） | 约 155ms / 帧 |
 
 **关键词召回率**（Azure TTS 留出集，10 发音人 × 多种语速/音调/音量；滑动窗口峰值检测）：
 
@@ -53,13 +63,11 @@
 
 内置**防误唤醒设置面板**（5 层检测开关 + L5 增量滑块 + 阈值调节 + 置信度进度条）。
 
-## 获取 ONNX 模型
+## 模型
 
-模型统一在 [voicute.com](https://www.voicute.com) 平台训练生成：输入关键词或唤醒词，自动生成 ONNX 模型。**无需上传任何音频**——模型由合成语音（TTS）训练生成，无需录音即可训练关键词。
+onnx-wakeword 是一个只提供推理代码的开源项目，运行时需要兼容的关键词模型及其配套分类头。
 
-- **基础款** — 输入关键词，约 30 分钟得到 90%+ 召回模型。全程合成语音训练，无需上传音频、无需录音。
-- **语音增强** — 追加约 5 条你的录音，针对难发音关键词（口音、童声、生僻读音），泛化到其他说话人，提升真人召回。
-- **多关键词** — 一个模型同时识别 2–10+ 个关键词，共享单个紧凑主干，不用堆叠多个模型。
+如需生成兼容的自定义唤醒词模型，可以使用 [Voicute 在线模型生成工具](https://www.voicute.com)。
 
 ## 模型文件
 
@@ -68,7 +76,7 @@
 | 文件 | 说明 |
 |------|------|
 | `melspectrogram.onnx` | 音频 → 梅尔频谱，通用模块，**本仓库已提供** |
-| `你的模型.onnx` | 关键词推理模型，由 Voicute 平台训练生成 |
+| `你的模型.onnx` | 兼容的关键词推理模型 |
 
 外加一个 `model_info.json` 描述模型配置。
 
@@ -172,7 +180,7 @@ DetectionResult result = engine.process(audioChunk);
 
 ### Home Assistant（Wyoming 协议）
 
-内置 [Wyoming 协议](https://github.com/rhasspy/wyoming) 服务，可直接接入 Home Assistant 作为唤醒词引擎——不需要 add-on，所有 HA 安装方式（HAOS / Supervised / Container / Core）都支持。
+内置 [Wyoming 协议](https://github.com/rhasspy/wyoming) 服务，可将 onnx-wakeword 直接接入 Home Assistant 作为唤醒词引擎——不需要 add-on，所有 HA 安装方式（HAOS / Supervised / Container / Core）都支持。
 
 **1. 启动服务（Docker）：**
 
