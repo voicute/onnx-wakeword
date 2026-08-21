@@ -16,7 +16,7 @@ Current models from [voicute.com](https://www.voicute.com):
 |---------|-----------|:-------:|
 | Hey Friday | `hey_friday.onnx` | v9.3 |
 
-> More languages available at [voicute.com](https://www.voicute.com). Supports **150+ languages**.
+> Custom models are available at [voicute.com](https://www.voicute.com). Currently supported languages: **Chinese, English, French, German, and Japanese**.
 
 ### Chinese (`zh/`)
 
