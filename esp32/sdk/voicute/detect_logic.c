@@ -227,7 +227,10 @@ const char *dl_evaluate(dl_state_t *s, const char *word, float prob,
     // ═══════════════════════════════════════════════════════════
     if (s->l4_enabled && trigger_word != NULL) {
         s->burst_t[s->burst_idx] = now_ms;
-        strncpy(s->burst_w[s->burst_idx], trigger_word, sizeof(s->burst_w[0]) - 1);
+        size_t word_cap = sizeof(s->burst_w[0]);
+        size_t word_len = strnlen(trigger_word, word_cap - 1);
+        memcpy(s->burst_w[s->burst_idx], trigger_word, word_len);
+        s->burst_w[s->burst_idx][word_len] = '\0';
         s->burst_p[s->burst_idx] = trigger_prob;
         s->burst_idx = (s->burst_idx + 1) % BURST_HIST;
 

@@ -1,0 +1,8 @@
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+examples/*/build/
+examples/*/managed_components/
+examples/*/sdkconfig
+examples/*/sdkconfig.old

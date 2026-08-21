@@ -19,7 +19,9 @@ idf.py flash
 
 ## Notes / 注意
 
+- The included reference model is `hey_robot.tflite`; its matching classifier
+  weights are in `main/head.h`.
 - Filename (without extension) is used as the keyword identifier
-  - e.g. `hey_friday.tflite` → keyword = `"hey_friday"`
+  - e.g. `hey_robot.tflite` → keyword = `"hey_robot"`
 - Supports up to 3 models simultaneously
 - SPIFFS partition size: 1MB

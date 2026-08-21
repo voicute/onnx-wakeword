@@ -121,12 +121,9 @@ esp_err_t bsp_codec_adc_init(int sample_rate)
         .channel = 2,
         .bits_per_sample = 32,
     };
+    // Global analog gain MUST be set BEFORE open; per-channel gain set after open silently fails
+    esp_codec_dev_set_in_gain(record_dev, RECORD_VOLUME);
     esp_codec_dev_open(record_dev, &fs);
-    // esp_codec_dev_set_in_gain(record_dev, RECORD_VOLUME);
-    esp_codec_dev_set_in_channel_gain(record_dev, ESP_CODEC_DEV_MAKE_CHANNEL_MASK(0), RECORD_VOLUME);
-    esp_codec_dev_set_in_channel_gain(record_dev, ESP_CODEC_DEV_MAKE_CHANNEL_MASK(1), RECORD_VOLUME);
-    esp_codec_dev_set_in_channel_gain(record_dev, ESP_CODEC_DEV_MAKE_CHANNEL_MASK(2), RECORD_VOLUME);
-    esp_codec_dev_set_in_channel_gain(record_dev, ESP_CODEC_DEV_MAKE_CHANNEL_MASK(3), RECORD_VOLUME);
 
     return ret_val;
 }
@@ -658,8 +655,9 @@ uint16_t Folder_retrieval(const char* directory, const char* fileExtension, char
         if (dot != NULL && dot != entry->d_name) { 
 
             if (strcasecmp(dot, fileExtension) == 0) {  
-                strncpy(File_Name[fileCount], entry->d_name, MAX_FILE_NAME_SIZE - 1);
-                File_Name[fileCount][MAX_FILE_NAME_SIZE - 1] = '\0';  
+                size_t name_len = strnlen(entry->d_name, MAX_FILE_NAME_SIZE - 1);
+                memcpy(File_Name[fileCount], entry->d_name, name_len);
+                File_Name[fileCount][name_len] = '\0';  
 
                 char filePath[MAX_PATH_SIZE];
                 snprintf(filePath, MAX_PATH_SIZE, "%s/%s", directory, entry->d_name);

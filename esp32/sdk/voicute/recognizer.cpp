@@ -16,11 +16,24 @@ static voice_event_callback_t g_cb = NULL;
 static void              *g_cb_ud = NULL;
 static dl_state_t         g_dl[MAX_WAKE_WORDS];   // L1-L5 per model
 
+// Posterior smoothing state (max over last SMOOTH_N frames), file-scope so it
+// can be cleared on IDLE<->CMD transitions — a frozen peak from before command
+// mode otherwise lingers ~3s after returning to IDLE and re-fires the trigger.
+#define SMOOTH_N 5
+static float prob_hist[MAX_WAKE_WORDS][SMOOTH_N];
+static int   prob_idx[MAX_WAKE_WORDS];
+
 // ---- Init ----
 #include "esp_heap_caps.h"
 void recognizer_start(const recognizer_config_t *cfg) {
     g_cfg = *cfg;
     memset(&g_registry, 0, sizeof(g_registry));
+
+#if CONFIG_NN_SKIP_NUDGE
+    ESP_LOGW(TAG, "ESP-NN fast requantize enabled (NN_SKIP_NUDGE); validate +/-1 LSB score impact");
+#else
+    ESP_LOGI(TAG, "ESP-NN bit-exact requantize enabled");
+#endif
 
     // Allocate dedicated 64KB scratch buffer for esp-nn (16-byte aligned)
     static uint8_t *nn_scratch = NULL;
@@ -29,11 +42,11 @@ void recognizer_start(const recognizer_config_t *cfg) {
         ESP_LOGI(TAG, "esp-nn scratch: %p", (void*)nn_scratch);
     }
 
-    // OpResolver — 10 operators for manbo_backbone_int8_FINAL
-    static tflite::MicroMutableOpResolver<10> resolver;
+    // Minimal operator set for the NHWC, batch-norm-folded backbone.
+    static tflite::MicroMutableOpResolver<8> resolver;
     #define R(op) resolver.Add##op()
-    R(Conv2D); R(DepthwiseConv2D); R(Pad); R(Add); R(Mul);
-    R(Reshape); R(Transpose); R(Slice); R(Sum); R(Concatenation);
+    R(Conv2D); R(DepthwiseConv2D); R(Pad); R(Add);
+    R(Reshape); R(StridedSlice); R(Mean); R(Concatenation);
     #undef R
 
     model_loader_init(&g_registry, cfg->model_path, &resolver, NULL, 0);
@@ -67,6 +80,11 @@ void recognizer_stop(void) {}
 static float g_last_prob = 0.0f;
 float recognizer_get_last_prob(void) { return g_last_prob; }
 
+void recognizer_reset_smooth(void) {
+    memset(prob_hist, 0, sizeof(prob_hist));
+    memset(prob_idx, 0, sizeof(prob_idx));
+}
+
 void recognizer_feed_rms(float rms, int64_t now_ms) {
     // Update RMS history for L5 detection (no inference)
     for (int i = 0; i < g_registry.num_models; i++)
@@ -88,7 +106,9 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms) {
     if (g_registry.num_models == 0) return;
 
     // Mel extraction
+    int64_t t_mel_start = esp_timer_get_time();
     if (mel_extract(pcm, mel_buffer) != 0) return;
+    int64_t t_mel_end = esp_timer_get_time();
 
     for (int m = 0; m < g_registry.num_models; m++) {
         wake_model_t *model = &g_registry.models[m];
@@ -101,12 +121,14 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms) {
             int8_t *inp = model->input_tensor->data.int8;
             float scale = model->input_tensor->params.scale;
             int zero_point = model->input_tensor->params.zero_point;
-            int n = MEL_TIME * MEL_N_MELS;
             // Generic float→int8 quantization (model-independent)
-            for (int i = 0; i < n; i++) {
-                int q = (int)lrintf(mel_buffer[0][i] / scale) + zero_point;
-                if (q < -128) q = -128; else if (q > 127) q = 127;
-                inp[i] = (int8_t)q;
+            for (int t = 0; t < MEL_TIME; t++) {
+                for (int f = 0; f < MEL_N_MELS; f++) {
+                    int i = t * MEL_N_MELS + f;
+                    int q = (int)lrintf(mel_buffer[t][f] / scale) + zero_point;
+                    if (q < -128) q = -128; else if (q > 127) q = 127;
+                    inp[i] = (int8_t)q;
+                }
             }
         } else {
             float *inp = model->input_tensor->data.f;
@@ -139,9 +161,6 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms) {
         // Model uses multi-scale pooling biased toward window END.
         // Word at wrong position → single-frame prob can drop to 0.
         // Smoothing catches the "sweet spot" frame within ~1.5s window.
-        #define SMOOTH_N 5
-        static float prob_hist[MAX_WAKE_WORDS][SMOOTH_N] = {{0}};
-        static int   prob_idx[MAX_WAKE_WORDS] = {0};
         prob_hist[m][prob_idx[m] % SMOOTH_N] = prob;
         prob_idx[m]++;
         float prob_smooth = prob;
@@ -165,8 +184,9 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms) {
         // Log every 10 frames, prob>0.05, or trigger; show smoothed prob
         static int cnt = 0; cnt++;
         if (cnt == 1 || cnt % 10 == 0 || prob_smooth > 0.05f || trigger != NULL)
-            ESP_LOGI(TAG, "%s: prob=%.4f rms=%.0f (cnt=%d) invoke=%.1fms%s",
+            ESP_LOGI(TAG, "%s: prob=%.4f rms=%.0f (cnt=%d) mel=%.1fms invoke=%.1fms%s",
                      model->wake_word, (double)prob_smooth, (double)rms, cnt,
+                     (double)(t_mel_end - t_mel_start) / 1000.0,
                      (double)(t_invoke_end - t_invoke_start) / 1000.0,
                      trigger ? " *TRIG*" : "");
 

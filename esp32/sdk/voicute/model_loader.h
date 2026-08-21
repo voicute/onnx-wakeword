@@ -25,7 +25,7 @@ extern "C" {
 #endif
 
 #define MAX_WAKE_WORDS 3
-#define TFLITE_ARENA_SIZE (96 * 1024)  // 96KB for internal SRAM (slim model)
+#define TFLITE_ARENA_SIZE (64 * 1024)  // Model uses ~54KB; keep arena small enough for internal SRAM
 
 typedef struct {
     char     wake_word[32];          // 唤醒词文本

@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 
+# Reuse the SDK component kept outside the runnable example project.
+set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../sdk/voicute")
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(voicute_wakeword)
 

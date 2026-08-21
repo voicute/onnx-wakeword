@@ -37,6 +37,11 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms);
 // Feed RMS to detection pipeline without running inference
 void recognizer_feed_rms(float rms, int64_t now_ms);
 
+// Clear posterior smoothing history (max-over-N window). Call on IDLE->CMD
+// transition: inferences pause during command mode, and a stale pre-wake peak
+// otherwise survives ~3s after returning to IDLE and can re-fire the trigger.
+void recognizer_reset_smooth(void);
+
 // Get last prob for model[0] (for miss detection diagnostics)
 float recognizer_get_last_prob(void);
 

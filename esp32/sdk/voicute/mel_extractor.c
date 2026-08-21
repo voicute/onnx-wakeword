@@ -25,6 +25,9 @@ static const char *TAG = "MelExtractor";
 #include "esp_dsp.h"
 static float fft_window[MEL_NFFT * 2];  // 512 complex = 1024 floats
 static int fft_initialized = 0;
+static uint16_t mel_first_bin[MEL_N_MELS];
+static uint16_t mel_last_bin[MEL_N_MELS];
+static int mel_ranges_initialized = 0;
 
 static void init_fft(void) {
     esp_err_t ret = dsps_fft2r_init_fc32(NULL, MEL_NFFT);
@@ -32,21 +35,28 @@ static void init_fft(void) {
     fft_initialized = 1;
 }
 
-static float pre_buf[MEL_AUDIO_LEN];
-static int pre_buf_ready = 0;
+static void init_mel_ranges(void) {
+    for (int m = 0; m < MEL_N_MELS; m++) {
+        int first = 0;
+        while (first < MEL_NFREQ && MEL_W[first][m] == 0.0f) first++;
+        int last = MEL_NFREQ - 1;
+        while (last >= first && MEL_W[last][m] == 0.0f) last--;
+        mel_first_bin[m] = (uint16_t)first;
+        mel_last_bin[m] = (uint16_t)last;
+    }
+    mel_ranges_initialized = 1;
+}
 
 void mel_extractor_init(void) {
     if (!fft_initialized) init_fft();
-    if (!pre_buf_ready) { memset(pre_buf, 0, sizeof(pre_buf)); pre_buf_ready = 1; }
+    if (!mel_ranges_initialized) init_mel_ranges();
     ESP_LOGI(TAG, "Mel ready (n_fft=%d, n_mels=%d, mel_time=%d)", MEL_NFFT, MEL_N_MELS, MEL_TIME);
 }
 
 int mel_extract(const int16_t *pcm, float mel_out[MEL_TIME][MEL_N_MELS]) {
     if (!pcm || !mel_out) return -1;
     if (!fft_initialized) init_fft();
-
-    // --- 1. int16 → float (raw, NO /32768 normalization) ---
-    for (int i = 0; i < MEL_AUDIO_LEN; i++) pre_buf[i] = (float)pcm[i];
+    if (!mel_ranges_initialized) init_mel_ranges();
 
     // --- 2. PASS 1: compute S=10*log10(mel_power), find global_max ---
     float global_max = -1e30f;
@@ -55,7 +65,7 @@ int mel_extract(const int16_t *pcm, float mel_out[MEL_TIME][MEL_N_MELS]) {
 
         // Apply MEL_WINDOW + fill complex FFT buffer (imag=0)
         for (int i = 0; i < MEL_NFFT; i++) {
-            float sample = pre_buf[frame_start + i];
+            float sample = (float)pcm[frame_start + i];
             fft_window[i * 2]     = sample * MEL_WINDOW[i];
             fft_window[i * 2 + 1] = 0.0f;
         }
@@ -76,7 +86,11 @@ int mel_extract(const int16_t *pcm, float mel_out[MEL_TIME][MEL_N_MELS]) {
         float mel_power[MEL_N_MELS];
         for (int m = 0; m < MEL_N_MELS; m++) {
             float sum = 0.0f;
-            for (int k = 0; k < MEL_NFREQ; k++) sum += power[k] * MEL_W[k][m];
+            // The triangular filterbank is 97.2% zero. Each filter's non-zero
+            // support is contiguous, so skipping the zero tails is exactly
+            // equivalent while avoiding most multiply/add loop iterations.
+            for (int k = mel_first_bin[m]; k <= mel_last_bin[m]; k++)
+                sum += power[k] * MEL_W[k][m];
             mel_power[m] = sum;
         }
 

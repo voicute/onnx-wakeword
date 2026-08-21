@@ -9,6 +9,7 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "esp_heap_caps.h"
+#include "esp_memory_utils.h"
 
 // FREE_MODEL_DATA: only free if model was loaded from SPIFFS (not compiled-in Flash)
 #define FREE_MODEL_DATA(ptr, is_compiled) do { if (!(is_compiled)) free(ptr); } while(0)
@@ -132,7 +133,11 @@ static uint8_t *read_file(const char *path, size_t *out_len, int *is_compiled,
     fseek(f, 0, SEEK_END);
     size_t len = ftell(f);
     fseek(f, 0, SEEK_SET);
-    uint8_t *buf = (uint8_t *)heap_caps_malloc(len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    // Tensor Arena benefits much more from internal RAM than the read-only
+    // FlatBuffer (~19 ms versus ~4 ms in board measurements), so keep model
+    // weights in PSRAM and reserve scarce internal RAM for the arena.
+    uint8_t *buf = (uint8_t *)heap_caps_malloc(
+        len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!buf) {
         ESP_LOGE(TAG, "OOM for %s (%d bytes)", path, (int)len);
         fclose(f);
@@ -147,6 +152,8 @@ static uint8_t *read_file(const char *path, size_t *out_len, int *is_compiled,
     }
     *out_len = len;
     *is_compiled = 0;
+    ESP_LOGI(TAG, "Model buffer %p is %s", (void *)buf,
+             esp_ptr_external_ram(buf) ? "PSRAM" : "internal RAM");
     return buf;
 }
 
@@ -193,7 +200,7 @@ int model_loader_load_one(wake_model_t *m, const char *filepath,
     }
     assert(m->arena);
     ESP_LOGI(TAG, "[3/7] Arena %dKB at %p (%s)", TFLITE_ARENA_SIZE/1024, (void*)m->arena,
-             (uint32_t)m->arena >= 0x3C000000 ? "PSRAM" : "Internal SRAM");
+             esp_ptr_external_ram(m->arena) ? "PSRAM" : "Internal SRAM");
 
     // 4. MicroAllocator
     ESP_LOGI(TAG, "[4/7] MicroAllocator::Create(arena=%p, size=%d KB)...",
@@ -271,12 +278,21 @@ int model_loader_init(model_registry_t *registry, const char *base_path,
 
         wake_model_t *m = &registry->models[count];
         char fname[64];
-        strncpy(fname, name, len - 7);
-        fname[len - 7] = '\0';
-        strncpy(m->wake_word, fname, sizeof(m->wake_word) - 1);
+        size_t stem_len = len - 7;
+        if (stem_len >= sizeof(fname)) {
+            ESP_LOGW(TAG, "Skipping model with overlong filename: %s", name);
+            continue;
+        }
+        memcpy(fname, name, stem_len);
+        fname[stem_len] = '\0';
+        size_t wake_len = strnlen(fname, sizeof(m->wake_word) - 1);
+        memcpy(m->wake_word, fname, wake_len);
+        m->wake_word[wake_len] = '\0';
         m->cons_frames = 1;
         m->threshold = 0.7f;
-        strncpy(m->model_file, name, sizeof(m->model_file) - 1);
+        size_t file_len = strnlen(name, sizeof(m->model_file) - 1);
+        memcpy(m->model_file, name, file_len);
+        m->model_file[file_len] = '\0';
 
         char fpath[320];
         snprintf(fpath, sizeof(fpath), "%s/%s", base_path, name);
