@@ -18,7 +18,7 @@ HOP, SR = 640, 16000
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('--model', default='manbo_voice_model', help='Model name (manbo_voice_model, manbo, nihaodiannao, etc.)')
+    p.add_argument('--model', default='hey_limi', help='Model name (hey_limi, manbo, gugugaga, etc.)')
     p.add_argument('--thr', type=float, default=0.5)
     p.add_argument('--cons', type=int, default=2)
     p.add_argument('--all', action='store_true', help='Enable all L1-L5')
@@ -46,12 +46,19 @@ def main():
         l5 = 0 if args.l5 is None else args.l5
 
     # Model name → wake word mapping
-    WORD_MAP = {'manbo_voice_model': '曼波', 'manbo': '曼波', 'nihaodiannao': '你好电脑',
+    WORD_MAP = {'hey_limi': 'Hey Limi', 'manbo_voice_model': '曼波', 'manbo': '曼波', 'nihaodiannao': '你好电脑',
                 'kaishibofang': '开始播放', 'gugugaga': '咕咕嘎嘎', 'laifu': '来福'}
     wake_word = WORD_MAP.get(args.model, args.model)
 
     MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
+    # Search models/ root first, then subdirectories (zh/, en/, de/, fr/)
     model_path = os.path.join(MODEL_DIR, f'{args.model}.onnx')
+    if not os.path.exists(model_path):
+        for subdir in ('zh', 'en', 'de', 'fr', 'ja'):
+            candidate = os.path.join(MODEL_DIR, subdir, f'{args.model}.onnx')
+            if os.path.exists(candidate):
+                model_path = candidate
+                break
     mel_path = os.path.join(MODEL_DIR, 'melspectrogram.onnx')
 
     if not os.path.exists(model_path):
