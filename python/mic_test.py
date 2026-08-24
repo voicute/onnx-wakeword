@@ -1,9 +1,10 @@
 """Quick mic test — standalone, no modification to existing code.
 
 Usage:
-  python mic_test.py                        # L1+L3 only, manbo.onnx
+  python mic_test.py                        # L1+L3 only, hey_limi
   python mic_test.py --all                  # L1-L5 all on
-  python mic_test.py --model nihaodiannao   # different model
+  python mic_test.py --model nihaodiannao   # different model by name
+  python mic_test.py --path ../models/zh/manbo.onnx  # full path
   python mic_test.py --thr 0.6              # higher threshold
 """
 import sys, os, time, argparse, numpy as np
@@ -19,6 +20,7 @@ HOP, SR = 640, 16000
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--model', default='hey_limi', help='Model name (hey_limi, manbo, gugugaga, etc.)')
+    p.add_argument('--path', help='Full path to .onnx model file (overrides --model)')
     p.add_argument('--thr', type=float, default=0.5)
     p.add_argument('--cons', type=int, default=2)
     p.add_argument('--all', action='store_true', help='Enable all L1-L5')
@@ -50,14 +52,19 @@ def main():
                 'kaishibofang': '开始播放', 'gugugaga': '咕咕嘎嘎', 'laifu': '来福'}
     wake_word = WORD_MAP.get(args.model, args.model)
 
-    MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
-    # Search models/ root first, then subdirectories (zh/, en/, de/, fr/)
-    model_path = os.path.join(MODEL_DIR, f'{args.model}.onnx')
-    if not os.path.exists(model_path):
-        for subdir in ('zh', 'en', 'de', 'fr', 'ja'):
-            candidate = os.path.join(MODEL_DIR, subdir, f'{args.model}.onnx')
-            if os.path.exists(candidate):
-                model_path = candidate
+    # Model path: --path overrides --model search
+    if args.path:
+        model_path = args.path
+    else:
+        MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
+        model_path = os.path.join(MODEL_DIR, f'{args.model}.onnx')
+        # Search models/ root first, then subdirectories (zh/, en/, de/, fr/)
+        if not os.path.exists(model_path):
+            for subdir in ('zh', 'en', 'de', 'fr', 'ja'):
+                candidate = os.path.join(MODEL_DIR, subdir, f'{args.model}.onnx')
+                if os.path.exists(candidate):
+                    model_path = candidate
+                    break
                 break
     mel_path = os.path.join(MODEL_DIR, 'melspectrogram.onnx')
 
