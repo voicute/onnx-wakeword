@@ -41,7 +41,7 @@ onnx-wakeword is a two-part system: custom keyword models trained online, then a
 1. [Train your own keyword](https://www.voicute.com) — enter any wake word (Chinese, English, Japanese, French, or German), platform generates TTS training data and trains the Causal TCN model (~30 min). Download the result.
 2. Download the resulting `model.zip`, load it on any supported platform — browser, desktop, Android, ESP32, Home Assistant.
 
-Your trained model runs completely offline from this point on — no API calls, no monthly fees, no telemetry. **Your audio never leaves your device during inference.** For evaluation before you pay, run the demo models included in `models/` (中文 / English / Deutsch / Français) using the same pipeline at zero cost.
+Your trained model runs completely offline from this point on — no API calls, no monthly fees, no telemetry. **Your audio never leaves your device during inference.** For testing before you generate a custom keyword, run the demo models included in `models/` (中文 / English / Deutsch / Français) using the same pipeline at zero cost.
 
 ---
 
