@@ -169,6 +169,8 @@ engine.set_L1(True)
 engine.start(lambda word, prob, info: print(f'Detected: {word}'))
 ```
 
+**Mic test:** `python mic_test.py` (default model: hey_limi). Models are searched in `models/zh/`, `models/en/`, etc. Use `--path /full/path/to/model.onnx` to specify a custom model file directly, or `--model manbo` for another built-in keyword.
+
 ### Android
 
 ```java

@@ -28,14 +28,15 @@ engine.start(lambda word, prob, info: print(f'Detected: {word} ({prob:.0%})'))
 ## Mic Test
 
 ```bash
-# Basic: L1 only, highest sensitivity
+# Basic: L1+L3, default model hey_limi (searches zh/, en/, de/, fr/)
 python mic_test.py
 
 # Full: L1-L5 all enabled, lowest false-trigger
 python mic_test.py --all
 
 # Options
-python mic_test.py --model hey_friday    # switch model
+python mic_test.py --model manbo          # switch model by name
+python mic_test.py --path /path/to/model.onnx  # full path override
 python mic_test.py --thr 0.6             # raise threshold
 python mic_test.py --list-devices        # list audio devices
 ```
@@ -91,6 +92,22 @@ engine = WakeWordEngine()
 engine.load('models/model_info.json', 'models/melspectrogram.onnx')
 engine.set_L1(True)
 engine.start(lambda word, prob, info: print(f'检测到: {word} ({prob:.0%})'))
+```
+
+### 麦克风测试
+
+```bash
+# 基础：L1+L3，默认模型 hey_limi（自动搜索 zh/en/de/fr）
+python mic_test.py
+
+# 完整：L1-L5 全开，最低误触发
+python mic_test.py --all
+
+# 选项
+python mic_test.py --model manbo          # 指定关键词名
+python mic_test.py --path D:\models\custom.onnx   # 指定完整路径
+python mic_test.py --thr 0.6              # 提高阈值
+python mic_test.py --list-devices         # 列出音频设备
 ```
 
 ### L1-L5 检测层

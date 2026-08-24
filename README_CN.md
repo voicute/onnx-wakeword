@@ -162,9 +162,11 @@ pip install onnxruntime numpy sounddevice
 ```
 
 ```bash
-# 快速麦克风测试
+# 快速麦克风测试（默认 hey_limi，自动搜索 zh/en/de/fr/ja）
 python mic_test.py
 python mic_test.py --all     # L1-L5 全开
+python mic_test.py --model manbo    # 指定关键词名
+python mic_test.py --path D:\models\custom.onnx   # 指定完整模型路径
 
 # 代码调用
 python -c "
