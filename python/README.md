@@ -28,7 +28,7 @@ engine.start(lambda word, prob, info: print(f'Detected: {word} ({prob:.0%})'))
 ## Mic Test
 
 ```bash
-# Basic: L1+L3, default model hey_limi (searches zh/, en/, de/, fr/)
+# Basic: L1+L3, default model xiaona/小娜 (searches zh/, en/, de/, fr/)
 python mic_test.py
 
 # Full: L1-L5 all enabled, lowest false-trigger
@@ -97,7 +97,7 @@ engine.start(lambda word, prob, info: print(f'检测到: {word} ({prob:.0%})'))
 ### 麦克风测试
 
 ```bash
-# 基础：L1+L3，默认模型 hey_limi（自动搜索 zh/en/de/fr）
+# 基础：L1+L3，默认模型 xiaona/小娜（自动搜索 zh/en/de/fr）
 python mic_test.py
 
 # 完整：L1-L5 全开，最低误触发

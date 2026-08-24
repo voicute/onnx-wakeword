@@ -19,7 +19,7 @@ HOP, SR = 640, 16000
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('--model', default='hey_limi', help='Model name (hey_limi, manbo, gugugaga, etc.)')
+    p.add_argument('--model', default='xiaona', help='Model name (xiaona, manbo, gugugaga, etc.)')
     p.add_argument('--path', help='Full path to .onnx model file (overrides --model)')
     p.add_argument('--thr', type=float, default=0.5)
     p.add_argument('--cons', type=int, default=2)
@@ -48,7 +48,7 @@ def main():
         l5 = 0 if args.l5 is None else args.l5
 
     # Model name → wake word mapping
-    WORD_MAP = {'hey_limi': 'Hey Limi', 'manbo_voice_model': '曼波', 'manbo': '曼波', 'nihaodiannao': '你好电脑',
+    WORD_MAP = {'xiaona': '小娜', 'manbo_voice_model': '曼波', 'manbo': '曼波', 'nihaodiannao': '你好电脑',
                 'kaishibofang': '开始播放', 'gugugaga': '咕咕嘎嘎', 'laifu': '来福'}
     wake_word = WORD_MAP.get(args.model, args.model)
 
