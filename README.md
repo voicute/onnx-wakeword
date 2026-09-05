@@ -91,8 +91,6 @@ Tested on **v9.3 models**.
 | Negative accuracy (validation set) | 96–98% |
 
 > **Hard negative mining** (in development): For keywords with false triggers, the trained model scans its negative audio corpus, automatically finds the segments it wrongly scores as wake words (hard negatives), and retrains with them up-weighted — the model learns from its own mistakes. No user-reported audio is required. In paired hold-out tests on production keywords, a single mining round typically cut false triggers by 85–90% (e.g. 330 → 48 triggers/hour), and 2–3 rounds reached a cumulative reduction of up to 99% — with recall preserved.
->
-> **难负样本挖掘**（开发中）：对误触发较多的唤醒词，用训练好的模型扫描负样本语料，自动找出被误判为唤醒词的片段（难负样本），加权后回流重训——让模型从自己的错误中学习，无需用户上报误触发录音。实测（生产关键词、同音频配对评估）：单轮挖掘通常降低误触发 85%–90%（如 330 → 48 次/小时），2–3 轮累计最高降低 99%，召回不受影响。
 
 > Training takes ~30 minutes per keyword. Currently supports Chinese, English, Japanese, French, and German (5 languages).
 
