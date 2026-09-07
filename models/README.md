@@ -32,6 +32,18 @@ Current models from [voicute.com](https://www.voicute.com):
 
 > **Voice edition (语音定制版)**: Standard TTS training + real user recordings (50x weight) + 80 epochs of training. Achieves ~17% lower false-trigger rate compared to the standard edition, with more stable recognition for specific user pronunciation patterns.
 
+### False-trigger optimization pairs (`zh/`)
+
+Before/after model pairs for three production keywords, measured on the same held-out corpus (15.4h speech/music/mixed; bare model, threshold 0.5, 40ms sliding window, counted per triggered file):
+
+| Keyword | Before (baseline) | After (optimized) | Before → After (triggers/h) | Reduction | Recall |
+|---------|---------|---------|---:|---:|---|
+| 你好小娜 | `nihaoxiaona_r0.onnx` | `nihaoxiaona_r1.onnx` | 221.9 → 10.0 | −95.5% | 100% → 100% |
+| 小娜 | `xiaona_r0.onnx` | `xiaona_r1.onnx` | 329.5 → 7.3 | −97.8% | 98.5% → 98.3% |
+| 豆包豆包 | `doubaodoubao_r0.onnx` | `doubaodoubao_r1.onnx` | 81.3 → 7.2 | −91.2% | 100% → 100% |
+
+> Verify it yourself: load the baseline and the optimized model side by side, play music or a video — the baseline fires repeatedly, the optimized model stays quiet. **The baseline is for comparison only; use the optimized model in production.** False-trigger optimization (hard negative mining retrain) is currently production-verified on Chinese keywords; other languages are in development & testing.
+
 ## How to Use
 
 ### Multi-keyword (single model, recommended)
@@ -86,6 +98,19 @@ One ONNX model outputs N keyword probabilities in a single inference. Model size
 | 小娜 / 你好小娜 / 小娜小娜 | `multi_xiaona.onnx` | v9.3-multi |
 
 > **语音定制版 (voice)**: 标准 TTS 基础上加入真人录音 x50 权重 + 80 epoch 训练，误触发率比标准版低约 17%。
+
+### 误触发优化对比模型 (`zh/`)
+
+三个生产关键词的优化前后模型对，同一留出语料实测（15.4 小时语音/音乐/混音；裸模型、阈值 0.5、40ms 滑窗、按触发文件计）：
+
+| 关键词 | 优化前 (基线) | 优化后 (优化版) | 优化前 → 后 (次/小时) | 降幅 | 召回变化 |
+|---------|---------|---------|---:|---:|---|
+| 你好小娜 | `nihaoxiaona_r0.onnx` | `nihaoxiaona_r1.onnx` | 221.9 → 10.0 | −95.5% | 100% → 100% |
+| 小娜 | `xiaona_r0.onnx` | `xiaona_r1.onnx` | 329.5 → 7.3 | −97.8% | 98.5% → 98.3% |
+| 豆包豆包 | `doubaodoubao_r0.onnx` | `doubaodoubao_r1.onnx` | 81.3 → 7.2 | −91.2% | 100% → 100% |
+
+> 可自行验证：分别加载优化前基线与优化版，播放音乐或视频——基线频繁误触发，优化版保持安静。**基线仅作对比，正式使用请选优化版。**
+> 误触发优化（难负样本挖掘重训）目前已在**中文**关键词上完成生产验证；其他语言开发测试中。
 
 ### 版本说明
 

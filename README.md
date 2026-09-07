@@ -66,31 +66,50 @@ Tested on **v9.3 models**.
 | Desktop inference | <5ms / frame |
 | ESP32-S3 TFLite Invoke (included demo) | ~155ms / frame |
 
-**Keyword recall** (held-out Azure TTS, 10 speakers × varied speed/pitch/volume; sliding-window peak detection):
+### Recall
+
+Held-out Azure TTS, 400 samples × varied speed/pitch/volume; sliding-window peak detection:
 
 | Keyword | Language | Recall |
 |---------|:-------:|:------:|
-| 小坦小坦 | ZH | 100% |
-| 元宝元宝 | ZH | 100% |
-| 你好琥珀 | ZH | 100% |
-| 小黑 | ZH | 97.4% |
+| 你好小娜 (optimized) | ZH | 100% |
+| 小娜 (optimized) | ZH | 98.3% |
+| 豆包豆包 (optimized) | ZH | 100% |
 | Hey Robot | EN | 100% |
 | サクラ (Sakura) | JA | 100% |
 | Apfelstrudel | DE | 99.4% |
 | Monsieur Sadin | FR | 100% |
 | Croissant | FR | 90.3% |
 
+> Chinese rows are false-trigger optimized models; non-Chinese rows are base demo models (false-trigger optimization in development & testing).
+
 > Across 20 recently trained keywords (5 languages): recall 90.3%–100%, mean 98.8%, 20/20 ≥ 90%.
 
 > Real-voice recall reaches 90%+ with 5 user recordings added during training.
 
-**False trigger resistance** (validated on ~25,000 held-out negatives across speech, music, noise, near-wake phrases; threshold 0.5):
+### False trigger control
 
-| Metric | Value |
-|--------|-------|
-| Negative accuracy (validation set) | 96–98% |
+**False-trigger optimization: before vs after** (same held-out corpus: 1/10 split of the mining corpus, 15.4 hours of speech/music/mixed audio; bare model, threshold 0.5, 40ms sliding window, counted per triggered file):
 
-> **Hard negative mining** (in development): For keywords with false triggers, the trained model scans its negative audio corpus, automatically finds the segments it wrongly scores as wake words (hard negatives), and retrains with them up-weighted — the model learns from its own mistakes. No user-reported audio is required. In paired hold-out tests on production keywords, a single mining round typically cut false triggers by 85–90% (e.g. 330 → 48 triggers/hour), and 2–3 rounds reached a cumulative reduction of up to 99% — with recall preserved.
+| Keyword | Before (triggers/h) | After (triggers/h) | Reduction | Recall |
+|---------|---:|---:|---:|---|
+| 你好小娜 | 221.9 | 10.0 | −95.5% | 100% → 100% |
+| 小娜 | 329.5 | 7.3 | −97.8% | 98.5% → 98.3% |
+| 豆包豆包 | 81.3 | 7.2 | −91.2% | 100% → 100% |
+
+> **False-trigger optimized edition**: once a keyword model is trained, one click starts the optimization — the trained model scans its negative audio corpus, finds the segments it wrongly scores as wake words (hard negatives), and retrains with them. The model learns from its own mistakes; **no user-reported audio is required**, and recall is preserved (−91% to −98% in a single round, table above).
+
+Comparison models included in this repo (`models/zh/`):
+
+| Keyword | Baseline (`*_r0.onnx`) | Optimized (`*_r1.onnx`) |
+|---------|---------|---------|
+| 你好小娜 | `nihaoxiaona_r0.onnx` | `nihaoxiaona_r1.onnx` |
+| 小娜 | `xiaona_r0.onnx` | `xiaona_r1.onnx` |
+| 豆包豆包 | `doubaodoubao_r0.onnx` | `doubaodoubao_r1.onnx` |
+
+> Verify it yourself: load a keyword's baseline and optimized model one after the other and play music or a video — the baseline fires repeatedly, the optimized model stays quiet. **Baselines are for comparison only; use the optimized models in production.**
+
+> False-trigger optimization is currently production-verified on **Chinese** keywords; **English / Japanese / French / German: in development & testing.**
 
 > Training takes ~30 minutes per keyword. Currently supports Chinese, English, Japanese, French, and German (5 languages).
 
@@ -231,7 +250,7 @@ onnx-wakeword/
 ├── wyoming/     # Home Assistant (Wyoming protocol service)
 ├── ha-addon/    # Home Assistant add-on
 ├── Dockerfile   # Docker image (voicute/voicute-wyoming)
-└── models/      # Demo models
+└── models/      # Demo models + false-trigger optimization pairs
 ```
 
 ---

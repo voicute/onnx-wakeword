@@ -5,9 +5,46 @@
   "multi_model": true,
   "models": [
     {
-      "wake_word": "hey limi",
-      "model_file": "zh/hey_limi.onnx",
+      "wake_word": "Hey Friday",
+      "model_file": "en/hey_friday.onnx",
+      "emb_frames": 1,
+      "cons_frames": 3
+    },
+    {
+      "wake_word": "小娜R1",
+      "model_file": "zh/xiaona_r1.onnx",
+      "emb_frames": 1,
       "cons_frames": 2
+    },
+    {
+      "wake_word": "小娜R0基线",
+      "model_file": "zh/xiaona_r0.onnx",
+      "emb_frames": 1,
+      "cons_frames": 2
+    },
+    {
+      "wake_word": "你好小娜R1",
+      "model_file": "zh/nihaoxiaona_r1.onnx",
+      "emb_frames": 1,
+      "cons_frames": 3
+    },
+    {
+      "wake_word": "你好小娜R0基线",
+      "model_file": "zh/nihaoxiaona_r0.onnx",
+      "emb_frames": 1,
+      "cons_frames": 3
+    },
+    {
+      "wake_word": "豆包豆包R1",
+      "model_file": "zh/doubaodoubao_r1.onnx",
+      "emb_frames": 1,
+      "cons_frames": 3
+    },
+    {
+      "wake_word": "豆包豆包R0基线",
+      "model_file": "zh/doubaodoubao_r0.onnx",
+      "emb_frames": 1,
+      "cons_frames": 3
     }
   ]
 }

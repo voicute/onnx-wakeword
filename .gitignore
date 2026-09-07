@@ -1,0 +1,8 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Local test models (not for the repo)
+models/zh/doubaodoubao_test.onnx
+models/model_info_doubaodoubao_test.json
+models/multi_N10_b478cd_v9.3.zip
