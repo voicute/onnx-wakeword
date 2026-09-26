@@ -54,10 +54,10 @@ def main():
     wake_word = WORD_MAP.get(args.model, args.model)
 
     # Model path: --path overrides --model search
+    MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
     if args.path:
         model_path = args.path
     else:
-        MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
         model_path = os.path.join(MODEL_DIR, f'{args.model}.onnx')
         # Search models/ root first, then subdirectories (zh/, en/, de/, fr/)
         if not os.path.exists(model_path):
@@ -66,11 +66,27 @@ def main():
                 if os.path.exists(candidate):
                     model_path = candidate
                     break
-                break
+        # Fuzzy fallback: exact name missing, try {name}*.onnx (e.g. xiaona -> xiaona_r1.onnx)
+        if not os.path.exists(model_path):
+            import glob as _glob
+            cands = [p for p in _glob.glob(os.path.join(MODEL_DIR, '**', f'{args.model}*.onnx'), recursive=True)
+                     if '_test' not in os.path.basename(p)]
+            if cands:
+                # prefer optimized round (_r1/_r2) over baseline (_r0)
+                cands.sort(key=lambda p: (not ('_r1' in p or '_r2' in p), p))
+                model_path = cands[0]
     mel_path = os.path.join(MODEL_DIR, 'melspectrogram.onnx')
 
     if not os.path.exists(model_path):
         print(f'Model not found: {model_path}')
+        import glob as _glob
+        avail = [os.path.relpath(p, MODEL_DIR)
+                 for p in _glob.glob(os.path.join(MODEL_DIR, '**', '*.onnx'), recursive=True)
+                 if 'melspectrogram' not in p]
+        if avail:
+            print('Available models:')
+            for p in sorted(avail):
+                print(f'  {p}')
         return
 
     mel = ort.InferenceSession(mel_path, providers=['CPUExecutionProvider'])
