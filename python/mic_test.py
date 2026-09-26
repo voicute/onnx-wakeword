@@ -1,27 +1,80 @@
-"""Quick mic test — standalone, no modification to existing code.
+"""Quick mic test — drives the real WakeWordEngine (wakeword_engine.py), so
+mel_time / input width / wake word all come from model_info.json exactly like
+production. No model parsing logic here.
 
 Usage:
-  python mic_test.py                        # L1+L3 only, hey_limi
+  python mic_test.py                        # loads models/model_info.json
+  python mic_test.py --info ../models/zh/model_info.json
+  python mic_test.py --model manbo          # finds the model_info.json referencing manbo*.onnx
   python mic_test.py --all                  # L1-L5 all on
-  python mic_test.py --model nihaodiannao   # different model by name
-  python mic_test.py --path ../models/zh/manbo.onnx  # full path
   python mic_test.py --thr 0.6              # higher threshold
 """
-import sys, os, time, argparse, numpy as np
-import onnxruntime as ort, sounddevice as sd
+import sys, os, time, argparse, glob, json
+import numpy as np
+import sounddevice as sd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from detection_logic import DetectionLogic
+from wakeword_engine import WakeWordEngine
 
-MEL_TIME, RAW_MELS = 98, 32
-N_MELS = 34   # classifier input: 32 mel + 2 hidden (zero-padded at runtime)
-AUDIO_WIN = (MEL_TIME - 1) * 160 + 512 + 160
+MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'models')
 HOP, SR = 640, 16000
+
+
+def list_bundles():
+    """All model_info.json bundles under models/ with their wake words."""
+    out = []
+    for p in sorted(glob.glob(os.path.join(MODEL_DIR, '**', 'model_info.json'),
+                              recursive=True)):
+        try:
+            with open(p, encoding='utf-8') as f:
+                cfg = json.load(f)
+        except Exception:
+            continue
+        words = cfg.get('keywords') or \
+            [m.get('wake_word', '?') for m in cfg.get('models', [])] or \
+            [cfg.get('wake_word', '?')]
+        out.append((os.path.relpath(p, MODEL_DIR), ', '.join(map(str, words))))
+    return out
+
+
+def find_info(args):
+    """Resolve which model_info.json to load."""
+    if args.info:
+        if not os.path.exists(args.info):
+            sys.exit(f'model_info not found: {args.info}')
+        return args.info
+    if args.model:
+        hits = []
+        for p in glob.glob(os.path.join(MODEL_DIR, '**', 'model_info.json'),
+                           recursive=True):
+            try:
+                with open(p, encoding='utf-8') as f:
+                    cfg = json.load(f)
+            except Exception:
+                continue
+            refs = [cfg.get('model_file', '')] + \
+                   [m.get('model_file', '') for m in cfg.get('models', [])]
+            if any(args.model in os.path.basename(r) and '_test' not in r
+                   for r in refs if r):
+                hits.append(p)
+        if not hits:
+            sys.exit(f'no model_info.json references "{args.model}". '
+                     f'Available bundles:\n' +
+                     '\n'.join(f'  {p}  ({w})' for p, w in list_bundles()))
+        return hits[0]
+    dflt = os.path.join(MODEL_DIR, 'model_info.json')
+    if os.path.exists(dflt):
+        return dflt
+    sys.exit('no models/model_info.json and no --info/--model given. '
+             'Available bundles:\n' +
+             '\n'.join(f'  {p}  ({w})' for p, w in list_bundles()))
+
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('--model', default='xiaona', help='Model name (xiaona, manbo, gugugaga, etc.)')
-    p.add_argument('--path', help='Full path to .onnx model file (overrides --model)')
+    p.add_argument('--info', help='Path to model_info.json (default: models/model_info.json)')
+    p.add_argument('--model', help='Find the model_info.json whose model file matches this name')
     p.add_argument('--thr', type=float, default=0.5)
     p.add_argument('--cons', type=int, default=2)
     p.add_argument('--all', action='store_true', help='Enable all L1-L5')
@@ -48,53 +101,17 @@ def main():
         l4 = 0 if args.l4 is None else args.l4
         l5 = 0 if args.l5 is None else args.l5
 
-    # Model name → wake word mapping
-    WORD_MAP = {'xiaona': '小娜', 'manbo_voice_model': '曼波', 'manbo': '曼波', 'nihaodiannao': '你好电脑',
-                'kaishibofang': '开始播放', 'gugugaga': '咕咕嘎嘎', 'laifu': '来福'}
-    wake_word = WORD_MAP.get(args.model, args.model)
+    info_path = find_info(args)
+    mel_path = os.path.join(os.path.dirname(info_path), 'melspectrogram.onnx')
+    if not os.path.exists(mel_path):
+        mel_path = os.path.join(MODEL_DIR, 'melspectrogram.onnx')
 
-    # Model path: --path overrides --model search
-    MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
-    if args.path:
-        model_path = args.path
-    else:
-        model_path = os.path.join(MODEL_DIR, f'{args.model}.onnx')
-        # Search models/ root first, then subdirectories (zh/, en/, de/, fr/)
-        if not os.path.exists(model_path):
-            for subdir in ('zh', 'en', 'de', 'fr', 'ja'):
-                candidate = os.path.join(MODEL_DIR, subdir, f'{args.model}.onnx')
-                if os.path.exists(candidate):
-                    model_path = candidate
-                    break
-        # Fuzzy fallback: exact name missing, try {name}*.onnx (e.g. xiaona -> xiaona_r1.onnx)
-        if not os.path.exists(model_path):
-            import glob as _glob
-            cands = [p for p in _glob.glob(os.path.join(MODEL_DIR, '**', f'{args.model}*.onnx'), recursive=True)
-                     if '_test' not in os.path.basename(p)]
-            if cands:
-                # prefer optimized round (_r1/_r2) over baseline (_r0)
-                cands.sort(key=lambda p: (not ('_r1' in p or '_r2' in p), p))
-                model_path = cands[0]
-    mel_path = os.path.join(MODEL_DIR, 'melspectrogram.onnx')
-
-    if not os.path.exists(model_path):
-        print(f'Model not found: {model_path}')
-        import glob as _glob
-        avail = [os.path.relpath(p, MODEL_DIR)
-                 for p in _glob.glob(os.path.join(MODEL_DIR, '**', '*.onnx'), recursive=True)
-                 if 'melspectrogram' not in p]
-        if avail:
-            print('Available models:')
-            for p in sorted(avail):
-                print(f'  {p}')
-        return
-
-    mel = ort.InferenceSession(mel_path, providers=['CPUExecutionProvider'])
-    model = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
-    # Resolve the classifier's real mel width from its input shape
-    # (production models are 32; the 34-col demo model is sabotage, not a convention)
-    shape = model.get_inputs()[0].shape
-    n_mels = shape[-1] if isinstance(shape[-1], int) and shape[-1] > 0 else RAW_MELS
+    eng = WakeWordEngine()
+    eng.load(info_path, mel_path)
+    if not eng.is_loaded():
+        sys.exit(f'engine failed to load {info_path}: {eng.getErrorMessage() if hasattr(eng, "getErrorMessage") else "see log"}')
+    needed = eng.audio_samples_needed
+    words = [m['name'] for m in eng.get_models()]
 
     dl = DetectionLogic(thr=args.thr, cons_frames=args.cons)
     dl.l1, dl.l2, dl.l3, dl.l4, dl.l5 = bool(l1), bool(l2), bool(l3), bool(l4), bool(l5)
@@ -102,12 +119,14 @@ def main():
         dl.l5_delta = args.l5_delta
 
     layers = ''.join([f'L{i+1}' for i, v in enumerate([l1,l2,l3,l4,l5]) if v])
-    print(f'Model: {model_path}')
+    print(f'Bundle: {info_path}')
+    print(f'Words: {" | ".join(words)}  mel_time={eng.dscnn_mel_time} '
+          f'n_mels={eng.dscnn_n_mels} audio_win={needed}')
     print(f'Layers: {layers}  thr={args.thr}  cons={args.cons}  L5={dl.l5_delta}')
     print(f'Say the wake word... (Ctrl+C to stop)')
     print()
 
-    ring = np.zeros(SR * 4, dtype=np.float32)
+    ring = np.zeros(max(SR * 4, needed + SR), dtype=np.float32)
     pos = 0
 
     def cb(indata, frames, info, status):
@@ -118,23 +137,17 @@ def main():
             pos -= n
         ring[pos:pos+n] = indata[:, 0] * 32767
         pos += n
-        if pos < AUDIO_WIN:
+        if pos < needed:
             return
 
-        chunk = ring[pos-AUDIO_WIN:pos].copy()
-        mel_out = mel.run(None, {'input': chunk.reshape(1, -1).astype(np.float32)})[0]
-        fr = mel_out.shape[2]
-        mel_data = mel_out[0, 0] / 10.0 + 2.0
-        ms = max(0, fr - MEL_TIME)
-        tcn_in = np.zeros((1, MEL_TIME, n_mels), dtype=np.float32)
-        for f in range(MEL_TIME):
-            s = ms + f
-            if s < fr: tcn_in[0, f, :RAW_MELS] = mel_data[s, :]
-
-        prob = float(model.run(None, {'input': tcn_in})[0][0, 0])
+        chunk = ring[pos-needed:pos].copy()
+        r = eng.predict(chunk)
+        if r is None:
+            return
+        prob = r['prob']
         rms = float(np.sqrt(np.mean(chunk ** 2)))
         now_ms = int(time.time() * 1000)
-        word = wake_word if prob > args.thr else ''
+        word = r['word'] if prob > args.thr else ''
 
         dl.record(prob, word, rms, now_ms)
         result = dl.evaluate(word, prob, rms, now_ms)
@@ -142,7 +155,7 @@ def main():
         if prob > 0.3:
             bar = '#' * int(prob * 40)
             tag = f'[{dl.cons}/{args.cons}]' if dl.cons > 0 else ''
-            print(f'  [{bar:<40}] {prob:.3f} {tag} rms={rms:.0f}  ', end='\r')
+            print(f'  [{bar:<40}] {prob:.3f} {tag} {r["word"]} rms={rms:.0f}  ', end='\r')
         if result:
             print(f'\n>>> {result} (prob={prob:.3f} rms={rms:.0f})\n')
 
