@@ -18,6 +18,13 @@
 #include <stdint.h>
 #include "mel_filterbank.h"  // MEL_NFFT, MEL_HOP, MEL_NFREQ, MEL_NBINS, MEL_WINDOW, MEL_W
 
+// head.h is generated together with the packaged model. Old 98-frame heads
+// remain compatible through the fallback below.
+#include "../../examples/esp32s3_hmi_devkit/main/head.h"
+#ifndef KWS_MEL_TIME
+#define KWS_MEL_TIME 98
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,9 +34,9 @@ extern "C" {
 #define MEL_HOP_LEN      MEL_HOP            // 160
 #define MEL_N_MELS       MEL_NBINS           // 32
 #define MEL_NFFT_BINS    MEL_NFREQ          // 257 = n_fft/2 + 1
-#define MEL_TIME         98                  // output time frames
+#define MEL_TIME         KWS_MEL_TIME        // output time frames from model head
 #define MEL_AUDIO_LEN    ((MEL_TIME - 1) * MEL_HOP_LEN + MEL_WIN_LEN + MEL_HOP_LEN)
-                                            // = 97*160 + 512 + 160 = 16192 samples (~1.0s)
+                                            // = (T-1)*160 + 512 + 160 samples
 #define MEL_PREEMPH      0.0f               // NO pre-emphasis (training ONNX model has none)
 #define MEL_EPSILON      1e-10f             // clip minimum
 

@@ -6,6 +6,13 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
+#include "tensorflow/lite/micro/micro_profiler.h"
+
+#define KWS_PROFILE 0
+#define KWS_PROFILE_EVERY 40
+#if KWS_PROFILE
+static tflite::MicroProfiler s_profiler;
+#endif
 
 static const char *TAG = "Recognizer";
 
@@ -35,21 +42,24 @@ void recognizer_start(const recognizer_config_t *cfg) {
     ESP_LOGI(TAG, "ESP-NN bit-exact requantize enabled");
 #endif
 
-    // Allocate dedicated 64KB scratch buffer for esp-nn (16-byte aligned)
-    static uint8_t *nn_scratch = NULL;
-    if (!nn_scratch) {
-        nn_scratch = (uint8_t*)heap_caps_malloc(64 * 1024, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-        ESP_LOGI(TAG, "esp-nn scratch: %p", (void*)nn_scratch);
-    }
+    // ESP-NN requests scratch buffers from the Tensor Arena. No separate
+    // application-side scratch allocation is needed.
 
     // Minimal operator set for the NHWC, batch-norm-folded backbone.
-    static tflite::MicroMutableOpResolver<8> resolver;
+    static tflite::MicroMutableOpResolver<10> resolver;
     #define R(op) resolver.Add##op()
     R(Conv2D); R(DepthwiseConv2D); R(Pad); R(Add);
     R(Reshape); R(StridedSlice); R(Mean); R(Concatenation);
+    R(Sum); R(Mul);
     #undef R
 
-    model_loader_init(&g_registry, cfg->model_path, &resolver, NULL, 0);
+    model_loader_init(&g_registry, cfg->model_path, &resolver, NULL, 0,
+#if KWS_PROFILE
+                      &s_profiler
+#else
+                      nullptr
+#endif
+    );
     mel_extractor_init();
 
     if (g_registry.num_models == 0) {
@@ -142,6 +152,15 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms) {
         TfLiteStatus st = model->interpreter->Invoke();
         int64_t t_invoke_end = esp_timer_get_time();
         if (st != kTfLiteOk) { ESP_LOGE(TAG, "Invoke fail st=%d", (int)st); continue; }
+
+#if KWS_PROFILE
+        static int profile_count = 0;
+        if (++profile_count % KWS_PROFILE_EVERY == 0) {
+            ESP_LOGI(TAG, "=== per-op profile (invoke #%d) ===", profile_count);
+            s_profiler.Log();
+            s_profiler.ClearEvents();
+        }
+#endif
 
         // Postprocess: backbone output → head → prob (caller-provided)
         float prob = 0.0f;

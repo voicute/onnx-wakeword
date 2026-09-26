@@ -10,7 +10,7 @@ dependencies:
       type: service
     version: 1.7.19~2
   espressif/dl_fft:
-    component_hash: a955ca29581de2177ddf25759273bd83f082b3c805e735fe6ee105858643989b
+    component_hash: 3e8f7d34e04bfa6333f289a6d126745bebe0cee9311b81a6a5d106047f63ef65
     dependencies:
     - name: idf
       require: private
@@ -18,9 +18,9 @@ dependencies:
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 0.6.0
+    version: 0.7.0
   espressif/esp-dl:
-    component_hash: 0d5dd7fadd04854a82e1404f871e16980002a46dfe9796e52626d3c8d6566ad2
+    component_hash: d792e72ab3858d805d8918d1215a862541344625f62134597866834de666fd04
     dependencies:
     - name: espressif/dl_fft
       registry_url: https://components.espressif.com
@@ -46,9 +46,9 @@ dependencies:
     - esp32s2
     - esp32s3
     - esp32s31
-    version: 3.3.9
+    version: 3.3.12
   espressif/esp-dsp:
-    component_hash: 12e44db246517a627bc0fe2b255b8335410c0215c98bfba2df5a8e3edea839ef
+    component_hash: ed9ac175b14e0414399a2b33c525579414b5bad19a2a67b12ea212def96f9a98
     dependencies:
     - name: idf
       require: private
@@ -56,9 +56,9 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 1.8.0
+    version: 1.8.2
   espressif/esp-nn:
-    component_hash: 83eca824ef501eb0d8ac7d090970d8a2997ac369e5edb86366a5943e4368d5a5
+    component_hash: 3b3411b0e4ad1717a72870fde9f9b67cef6f3f97491cc64fcfc1910a8fd8a246
     dependencies:
     - name: idf
       require: private
@@ -66,9 +66,9 @@ dependencies:
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 1.3.0
+    version: 1.4.1
   espressif/esp-sr:
-    component_hash: 0f96f3a5579915a65a0ceb1c2183f9700f7986982f2be3964b75b2136333fc41
+    component_hash: 698154c0a94f6c8ac3e1ac669ec3ea741e6f848022b0f89030eddb23f3a31e14
     dependencies:
     - name: espressif/cjson
       registry_url: https://components.espressif.com
@@ -81,10 +81,12 @@ dependencies:
     - name: espressif/esp-dl
       registry_url: https://components.espressif.com
       require: private
-      version: '>=3.3.9'
+      version: ~3.3.12
     - name: espressif/esp-dsp
       registry_url: https://components.espressif.com
       require: private
+      rules:
+      - if: target in [esp32, esp32s2, esp32c3, esp32c5, esp32c6]
       version: 1.8.0
     - name: idf
       require: private
@@ -92,21 +94,21 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 2.5.1
+    version: 2.5.5
   espressif/esp-tflite-micro:
-    component_hash: 57aa3889d3c7b7a513f716c2cb8707476a5bf42971d63a6f6d38a5616d862e57
+    component_hash: bdb2625ed976d5b861177cdc295abc6738724f84f4c7c60fc58c721d2b30bed6
     dependencies:
     - name: espressif/esp-nn
       registry_url: https://components.espressif.com
       require: private
-      version: '>=1.1.1'
+      version: '>=1.3.0'
     - name: idf
       require: private
-      version: '>=5.0'
+      version: '>=5.1'
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 1.3.5
+    version: 1.4.1
   espressif/esp_codec_dev:
     component_hash: 4779f31a3ba3f9b38aee1afe6ccb9ba8f6108dc3a6e77d39d7d714e9a215371b
     dependencies:
@@ -181,6 +183,6 @@ direct_dependencies:
 - espressif/esp_codec_dev
 - espressif/esp_io_expander_tca95xx_16bit
 - espressif/led_strip
-manifest_hash: 2c6483a30d2e215a91facbd7dc26fd0040651cea82ba67a75678721ebd0538e9
+manifest_hash: 940d77d42d2208e9a66db5f96d39a555142125e1acabf23c83bf82e14948215f
 target: esp32s3
 version: 3.0.0

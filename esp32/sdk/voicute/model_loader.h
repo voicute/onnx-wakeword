@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/micro_op_resolver.h"
+#include "tensorflow/lite/micro/micro_profiler.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,14 +60,16 @@ typedef struct {
  */
 int model_loader_init(model_registry_t *registry, const char *base_path,
                        tflite::MicroOpResolver *resolver,
-                       const uint8_t *compiled_model, size_t compiled_len);
+                       const uint8_t *compiled_model, size_t compiled_len,
+                       tflite::MicroProfilerInterface *profiler = nullptr);
 
 /**
  * @brief  加载单个 TFLite 模型（从 SPIFFS 文件或 compiled data）
  */
 int model_loader_load_one(wake_model_t *m, const char *filepath,
                            tflite::MicroOpResolver *resolver,
-                           const uint8_t *compiled_model, size_t compiled_len);
+                           const uint8_t *compiled_model, size_t compiled_len,
+                           tflite::MicroProfilerInterface *profiler = nullptr);
 
 #ifdef __cplusplus
 }

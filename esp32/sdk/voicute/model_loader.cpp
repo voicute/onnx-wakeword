@@ -3,6 +3,7 @@
  */
 
 #include "model_loader.h"
+#include "../../examples/esp32s3_hmi_devkit/main/head.h"
 #include <string.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -163,7 +164,8 @@ static uint8_t *read_file(const char *path, size_t *out_len, int *is_compiled,
 
 int model_loader_load_one(wake_model_t *m, const char *filepath,
                            tflite::MicroOpResolver *resolver,
-                           const uint8_t *compiled_model, size_t compiled_len) {
+                           const uint8_t *compiled_model, size_t compiled_len,
+                           tflite::MicroProfilerInterface *profiler) {
     // 1. 读取模型
     ESP_LOGI(TAG, "[1/7] Reading model: %s", filepath);
     size_t model_len; int is_compiled = 0;
@@ -216,7 +218,8 @@ int model_loader_load_one(wake_model_t *m, const char *filepath,
 
     // 5. MicroInterpreter
     ESP_LOGI(TAG, "[5/7] Creating MicroInterpreter...");
-    m->interpreter = new tflite::MicroInterpreter(m->tflite_model, *resolver, m->allocator);
+    m->interpreter = new tflite::MicroInterpreter(m->tflite_model, *resolver, m->allocator,
+                                                   nullptr, profiler);
     if (!m->interpreter) {
         ESP_LOGE(TAG, "  MicroInterpreter constructor returned NULL!");
         free(m->arena);
@@ -248,6 +251,23 @@ int model_loader_load_one(wake_model_t *m, const char *filepath,
         return -1;
     }
 
+    // Fail fast when the model and generated head.h use different mel windows.
+#ifndef KWS_TIME_DIM
+#define KWS_TIME_DIM 1
+#endif
+#ifndef KWS_MEL_TIME
+#define KWS_MEL_TIME 98
+#endif
+    if (m->input_tensor->dims->size > KWS_TIME_DIM &&
+        m->input_tensor->dims->data[KWS_TIME_DIM] != KWS_MEL_TIME) {
+        ESP_LOGE(TAG, "FATAL: model mel_time=%d but firmware KWS_MEL_TIME=%d",
+                 (int)m->input_tensor->dims->data[KWS_TIME_DIM], (int)KWS_MEL_TIME);
+        delete m->interpreter; m->interpreter = nullptr;
+        free(m->arena);
+        FREE_MODEL_DATA(model_data, is_compiled);
+        return -1;
+    }
+
     ESP_LOGI(TAG, "[7/7] Loaded OK");
     return 0;
 }
@@ -258,7 +278,8 @@ int model_loader_load_one(wake_model_t *m, const char *filepath,
 
 int model_loader_init(model_registry_t *registry, const char *base_path,
                        tflite::MicroOpResolver *resolver,
-                       const uint8_t *compiled_model, size_t compiled_len) {
+                       const uint8_t *compiled_model, size_t compiled_len,
+                       tflite::MicroProfilerInterface *profiler) {
     memset(registry, 0, sizeof(*registry));
     int count = 0;
 
@@ -297,7 +318,7 @@ int model_loader_init(model_registry_t *registry, const char *base_path,
         char fpath[320];
         snprintf(fpath, sizeof(fpath), "%s/%s", base_path, name);
         ESP_LOGI(TAG, "Found: %s → loading...", name);
-        if (model_loader_load_one(m, fpath, resolver, NULL, 0) == 0) {
+        if (model_loader_load_one(m, fpath, resolver, NULL, 0, profiler) == 0) {
             ESP_LOGI(TAG, "  [%d] %s loaded (cons=%d)", count, m->wake_word, m->cons_frames);
             count++;
         } else {
