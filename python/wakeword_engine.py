@@ -31,6 +31,7 @@ class WakeWordEngine:
         self.models = []
         self.dscnn_mode = False
         self.dscnn_mel_time = 98
+        self.dscnn_n_mels = N_MELS  # resolved from model input shape in load()
         self.is_multi_keyword = False
         self.multi_kw_session = None
         self.keywords = []
@@ -122,10 +123,33 @@ class WakeWordEngine:
                 })
 
         if self.dscnn_mode:
+            # Resolve the classifier's real mel-channel width from its input
+            # shape: current-gen tcn models take 32 cols; legacy DS-CNN took
+            # 34 (32 mel + 2 hidden pad). Feeding the wrong width only fails
+            # at first inference with an ORT shape error — resolve it here.
+            sessions = ([self.multi_kw_session] if self.is_multi_keyword
+                        else [m['session'] for m in self.models])
+            self.dscnn_n_mels = self._resolve_input_cols(sessions[0], self.dscnn_mel_time)
+            for s in sessions[1:]:
+                if self._resolve_input_cols(s, self.dscnn_mel_time) != self.dscnn_n_mels:
+                    raise ValueError('model bundle mixes different input mel widths')
             self.audio_samples_needed = self.dscnn_mel_time * MEL_HOP + MEL_WIN
         else:
             max_frames = max(m.get('emb_frames', 1) for m in self.models)
             self.audio_samples_needed = (76 + (max_frames - 1) * 8) * MEL_HOP + MEL_WIN
+
+    @staticmethod
+    def _resolve_input_cols(session, expect_mel_time=None):
+        """Validate mel_time and return the input's mel width
+        ([batch, mel_time, cols])."""
+        shape = session.get_inputs()[0].shape
+        mt = shape[-2]
+        if expect_mel_time is not None and isinstance(mt, int) and mt > 0 \
+                and mt != expect_mel_time:
+            raise ValueError(f'mel_time mismatch: config mel_time={expect_mel_time} '
+                             f'but model input shape={shape}')
+        last = shape[-1] if isinstance(shape[-1], int) and shape[-1] > 0 else RAW_MELS
+        return last
 
     # ═══════════════════════════
     # Inference
@@ -148,7 +172,7 @@ class WakeWordEngine:
         scores, words, cf_list = [], [], []
         if self.dscnn_mode:
             start = max(0, frames - self.dscnn_mel_time)
-            dscnn_in = np.zeros((1, self.dscnn_mel_time, N_MELS), dtype=np.float32)
+            dscnn_in = np.zeros((1, self.dscnn_mel_time, self.dscnn_n_mels), dtype=np.float32)
             for f in range(self.dscnn_mel_time):
                 src = start + f
                 if 0 <= src < frames:

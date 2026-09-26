@@ -39,7 +39,8 @@ public class WakeWordEngine {
     static final float MEL_HOP_SEC = 0.010f;
     static final float MEL_WIN_SEC = 0.025f;
     static final int MEL_HOP_SAMPLES = (int) (SAMPLE_RATE * MEL_HOP_SEC);
-    static final int N_MELS = 34;      // classifier input: 32 mel + 2 hidden (zero-padded at runtime)
+    static final int N_MELS = 34;      // legacy DS-CNN width; runtime width resolved from model input shape
+    private int inputMels = N_MELS;    // resolved in bindModelInputShape() at load time
     static final int RAW_MELS = 32;     // mel spectrogram output channels (unchanged)
 
     /** Detection result with specific wake word name. */
@@ -85,7 +86,7 @@ public class WakeWordEngine {
     private String[] wakeWordNames;
     private int melFramesNeeded;
     private int audioSamplesNeeded;
-    private int dscnnMelTime = 50;
+    private int dscnnMelTime = 98;
 
     public int getMelFramesNeeded() { return melFramesNeeded; }
     public int getAudioSamplesNeeded() { return audioSamplesNeeded; }
@@ -130,7 +131,7 @@ public class WakeWordEngine {
             }
             JSONObject info = new JSONObject(new String(infoBytes, "UTF-8"));
 
-            dscnnMelTime = info.optInt("mel_time", 50);
+            dscnnMelTime = info.optInt("mel_time", 98);
             Log.i(TAG, "mel_time=" + dscnnMelTime);
 
             // ── New: single multi-keyword model ──
@@ -185,7 +186,12 @@ public class WakeWordEngine {
             if (!isMultiKeyword) {
                 for (ModelSlot m : models) {
                     m.session = loadModel(context, m.modelFile);
+                    bindModelInputShape(m.session, m.modelFile);
                 }
+            } else if (multiKwSession != null) {
+                // model_file was read inside the multi_keyword branch; re-derive
+                // the name for the error message only.
+                bindModelInputShape(multiKwSession, "multi_keyword model");
             }
 
             loaded = true;
@@ -195,6 +201,34 @@ public class WakeWordEngine {
             errorMessage = e.getMessage();
             loaded = false;
         }
+    }
+
+    /**
+     * Bind runtime input dims from the classifier ONNX at load time:
+     * mel_time must match model_info.json (fail-fast, ORT would otherwise only
+     * fail on the first inference), and the last dim is the real mel width
+     * (32 = current-gen tcn; 34 = legacy DS-CNN with hidden padding).
+     */
+    private void bindModelInputShape(OrtSession session, String modelFile) throws OrtException {
+        ai.onnxruntime.TensorInfo tinfo = (ai.onnxruntime.TensorInfo)
+                session.getInputInfo().values().iterator().next().getInfo();
+        long[] shape = tinfo.getShape();
+        boolean timeMatch = false;
+        for (long d : shape) {
+            if (d == dscnnMelTime) { timeMatch = true; break; }
+        }
+        if (!timeMatch) {
+            throw new OrtException("mel_time mismatch: model_info.json mel_time="
+                    + dscnnMelTime + " but " + modelFile + " input shape="
+                    + java.util.Arrays.toString(shape));
+        }
+        long last = shape[shape.length - 1];
+        int width = (last > 0) ? (int) last : RAW_MELS;
+        if (inputMels != N_MELS && inputMels != width) {
+            throw new OrtException("model bundle mixes different input widths: "
+                    + inputMels + " vs " + width + " (" + modelFile + ")");
+        }
+        inputMels = width;
     }
 
     private OrtSession loadModel(Context context, String filename) throws IOException, OrtException {
@@ -258,7 +292,7 @@ public class WakeWordEngine {
             if (System.currentTimeMillis() - engineStartTime < STARTUP_SKIP_MS) return null;
 
             int melStart = Math.max(0, frames - dscnnMelTime);
-            float[][][] dscnnInput = new float[1][dscnnMelTime][N_MELS];
+            float[][][] dscnnInput = new float[1][dscnnMelTime][inputMels];
             for (int f = 0; f < dscnnMelTime; f++) {
                 int srcF = melStart + f;
                 if (srcF >= 0 && srcF < frames) {
@@ -268,9 +302,9 @@ public class WakeWordEngine {
             }
 
             // Flatten to 1D (includes hidden padding)
-            float[] flatInput = new float[dscnnMelTime * N_MELS];
+            float[] flatInput = new float[dscnnMelTime * inputMels];
             for (int f = 0; f < dscnnMelTime; f++) {
-                System.arraycopy(dscnnInput[0][f], 0, flatInput, f * N_MELS, N_MELS);
+                System.arraycopy(dscnnInput[0][f], 0, flatInput, f * inputMels, inputMels);
             }
 
             // 5. Run classifier(s)
@@ -282,7 +316,7 @@ public class WakeWordEngine {
                 // ── New: single multi-keyword model → [1, N] output ──
                 OnnxTensor kwIn = OnnxTensor.createTensor(env,
                         java.nio.FloatBuffer.wrap(flatInput),
-                        new long[]{1, dscnnMelTime, N_MELS});
+                        new long[]{1, dscnnMelTime, inputMels});
                 OrtSession.Result kwOut = multiKwSession.run(
                         Collections.singletonMap("input", kwIn));
                 float[][] scored = (float[][]) kwOut.get(0).getValue();  // [1, N]
@@ -314,9 +348,9 @@ public class WakeWordEngine {
                     }
                     float melMean = 0;
                     for (int f = 0; f < dscnnMelTime; f++)
-                        for (int m = 0; m < N_MELS; m++)
+                        for (int m = 0; m < inputMels; m++)
                             melMean += dscnnInput[0][f][m];
-                    melMean /= (dscnnMelTime * N_MELS);
+                    melMean /= (dscnnMelTime * inputMels);
                     Log.d(TAG, String.format(Locale.US,
                             "[Multi-KW] top1=%s(%.3f) top2=%s(%.3f) top3=%s(%.3f) melMean=%.1f",
                             keywords[topIdx[0]], topVal[0],
@@ -330,7 +364,7 @@ public class WakeWordEngine {
                 for (ModelSlot model : models) {
                     OnnxTensor dscnnIn = OnnxTensor.createTensor(env,
                             java.nio.FloatBuffer.wrap(flatInput),
-                            new long[]{1, dscnnMelTime, N_MELS});
+                            new long[]{1, dscnnMelTime, inputMels});
                     OrtSession.Result dscnnOut = model.session.run(
                             Collections.singletonMap("input", dscnnIn));
                     Object rawOut = dscnnOut.get(0).getValue();
@@ -360,14 +394,14 @@ public class WakeWordEngine {
                 debugLogCount++;
                 float melSum = 0, melMin = Float.MAX_VALUE, melMax = -Float.MAX_VALUE;
                 for (int f = 0; f < dscnnMelTime; f++) {
-                    for (int m = 0; m < N_MELS; m++) {
+                    for (int m = 0; m < inputMels; m++) {
                         float v = dscnnInput[0][f][m];
                         melSum += v;
                         if (v < melMin) melMin = v;
                         if (v > melMax) melMax = v;
                     }
                 }
-                float m = melSum / (dscnnMelTime * N_MELS);
+                float m = melSum / (dscnnMelTime * inputMels);
                 Log.d(TAG, String.format(Locale.US,
                         "[DS-CNN] %d models sig=%.4f word=%s melMean=%.2f melMin=%.2f melMax=%.2f",
                         models.size(), bestSigmoid, bestWord != null ? bestWord : "-",
