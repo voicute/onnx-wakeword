@@ -54,7 +54,7 @@ def run_test(model_path, mel_path, wav_files, thr=0.5, cons_frames=2, max_files=
 
     # Infer mel bins from model input shape ([1, 98, 32] → 32; [1, 98, 34] → 34)
     model_in_shape = model_sess.get_inputs()[0].shape
-    n_mels = int(model_in_shape[2]) if isinstance(model_in_shape[2], int) else N_MELS
+    n_mels = int(model_in_shape[2]) if isinstance(model_in_shape[2], int) else RAW_MELS
     print(f"Model input: {model_in_shape}  (n_mels={n_mels})")
 
     dl = DetectionLogic(thr=thr, cons_frames=cons_frames)

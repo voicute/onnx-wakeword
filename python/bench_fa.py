@@ -53,7 +53,7 @@ def sweep_file(fpath, mel_sess, model_sessions, thr=0.5, cons=2):
             continue
         mel_data = mel_out[0, 0] / 10.0 + 2.0
         mel_start = max(0, frames - MEL_TIME)
-        tcn_in = np.zeros((1, MEL_TIME, N_MELS), dtype=np.float32)
+        tcn_in = np.zeros((1, MEL_TIME, n_mels), dtype=np.float32)
         for f in range(MEL_TIME):
             src_f = mel_start + f
             if src_f < frames:
@@ -160,6 +160,12 @@ def main():
     mel_sess = ort.InferenceSession(mel_path, providers=["CPUExecutionProvider"])
     model_sessions = {name: ort.InferenceSession(path, providers=["CPUExecutionProvider"])
                       for name, path in model_paths.items()}
+    # Resolve the classifier's real mel width from its input shape
+    # (production models are 32; the 34-col demo model is sabotage, not a convention)
+    shape = next(iter(model_sessions.values())).get_inputs()[0].shape
+    n_mels = shape[-1] if isinstance(shape[-1], int) and shape[-1] > 0 else RAW_MELS
+    if any(s.get_inputs()[0].shape[-1] != n_mels for s in model_sessions.values()):
+        print(f"warning: models with differing input widths, using {n_mels}")
 
     # Pre-compute probs for all files (store per-file for proper reset)
     t0 = time.time()

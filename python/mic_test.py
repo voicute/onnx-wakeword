@@ -75,6 +75,10 @@ def main():
 
     mel = ort.InferenceSession(mel_path, providers=['CPUExecutionProvider'])
     model = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+    # Resolve the classifier's real mel width from its input shape
+    # (production models are 32; the 34-col demo model is sabotage, not a convention)
+    shape = model.get_inputs()[0].shape
+    n_mels = shape[-1] if isinstance(shape[-1], int) and shape[-1] > 0 else RAW_MELS
 
     dl = DetectionLogic(thr=args.thr, cons_frames=args.cons)
     dl.l1, dl.l2, dl.l3, dl.l4, dl.l5 = bool(l1), bool(l2), bool(l3), bool(l4), bool(l5)
@@ -106,7 +110,7 @@ def main():
         fr = mel_out.shape[2]
         mel_data = mel_out[0, 0] / 10.0 + 2.0
         ms = max(0, fr - MEL_TIME)
-        tcn_in = np.zeros((1, MEL_TIME, N_MELS), dtype=np.float32)
+        tcn_in = np.zeros((1, MEL_TIME, n_mels), dtype=np.float32)
         for f in range(MEL_TIME):
             s = ms + f
             if s < fr: tcn_in[0, f, :RAW_MELS] = mel_data[s, :]
