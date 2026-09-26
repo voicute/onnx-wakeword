@@ -14,7 +14,7 @@ Custom wake word detection for Home Assistant, powered by Voicute.
 
 1. Add this repository to Home Assistant (Supervisor → Add-on store → ⋮ → Repositories)
 2. Install the "Voicute Wake Word" add-on and start it
-3. It ships with a demo keyword (`hey limi`) and the universal mel model, so it works out of the box
+3. It ships with demo keywords (`Hey Friday`, `小娜`, `你好小娜`, `豆包豆包`) and the universal mel model, so it works out of the box
 4. In Home Assistant → Settings → Devices & services → Add Integration → **Wyoming Protocol**, enter the HA host IP and port `10400`
 5. Pick "Voicute" as the wake word engine in your voice assistant's wake-word configuration
 

@@ -1,4 +1,4 @@
-FROM voicute/voicute-wyoming:1.0.0
+FROM voicute/voicute-wyoming:1.1.0
 
 # Add-on entrypoint: reads Home Assistant options from /data/options.json and
 # launches the Wyoming service. Plain Python (no bash/bashio) — the base image

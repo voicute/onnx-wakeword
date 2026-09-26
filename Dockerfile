@@ -5,9 +5,16 @@ WORKDIR /app
 COPY python/ ./python/
 COPY wyoming/ ./wyoming/
 COPY models/melspectrogram.onnx ./models/
-# Bundle a demo keyword so the image (and the HA add-on) works out of the box.
+# Bundle the demo keywords so the image (and the HA add-on) works out of the
+# box. Must match every model_file referenced by models/model_info.json.
 COPY models/model_info.json ./models/
-COPY models/zh/hey_limi.onnx ./models/zh/
+COPY models/en/hey_friday.onnx ./models/en/
+COPY models/zh/xiaona_r1.onnx ./models/zh/
+COPY models/zh/xiaona_r0.onnx ./models/zh/
+COPY models/zh/nihaoxiaona_r1.onnx ./models/zh/
+COPY models/zh/nihaoxiaona_r0.onnx ./models/zh/
+COPY models/zh/doubaodoubao_r1.onnx ./models/zh/
+COPY models/zh/doubaodoubao_r0.onnx ./models/zh/
 
 RUN pip install --no-cache-dir onnxruntime numpy
 
