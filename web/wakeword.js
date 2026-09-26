@@ -27,7 +27,7 @@ const MEL_HOP = 160, MEL_WIN = 400, N_MELS = 32;
 window.VoicuteWakeWord = {
     create() {
         let melSession = null, models = [];
-        let dscnnMode = false, dscnnMelTime = 98;
+        let dscnnMode = false, dscnnMelTime = 98, dscnnNMels = 32;
         let isMultiKeyword = false, multiKwSession = null, keywords = [];
         let audioSamplesNeeded = 0;
 
@@ -95,6 +95,10 @@ window.VoicuteWakeWord = {
 
             dscnnMode = info.model_type === 'dscnn' || info.model_type === 'tcn' || info.model_type === 'multi_keyword';
             dscnnMelTime = info.mel_time || 98;
+            // ort-web exposes no input shape before the first run, so the
+            // classifier's mel width comes from config (falls back to 32 —
+            // current-gen models; 34 is the demo-sabotage width, never a target)
+            dscnnNMels = info.n_mels || 32;
 
             // ── Multi-keyword: single model with N outputs ──
             if (info.model_type === 'multi_keyword') {
@@ -152,14 +156,14 @@ window.VoicuteWakeWord = {
             const scores = [], words = [], cfList = [];
             if (dscnnMode) {
                 const start = Math.max(0, frames - dscnnMelTime);
-                const input = new Float32Array(dscnnMelTime * N_MELS);
+                const input = new Float32Array(dscnnMelTime * dscnnNMels);
                 for (let f = 0; f < dscnnMelTime; f++) {
                     const s = start + f;
-                    if (s >= 0 && s < frames) input.set(mel2d.subarray(s * N_MELS, (s + 1) * N_MELS), f * N_MELS);
+                    if (s >= 0 && s < frames) input.set(mel2d.subarray(s * N_MELS, (s + 1) * N_MELS), f * dscnnNMels);
                 }
                 // ── Multi-keyword: single model, single inference → [1, N] output ──
                 if (isMultiKeyword) {
-                    const out = await multiKwSession.run({ input: new ort.Tensor('float32', input, [1, dscnnMelTime, N_MELS]) });
+                    const out = await multiKwSession.run({ input: new ort.Tensor('float32', input, [1, dscnnMelTime, dscnnNMels]) });
                     const data = out[Object.keys(out)[0]].data;
                     for (let i = 0; i < keywords.length; i++) {
                         scores.push(data[i]);
@@ -170,7 +174,7 @@ window.VoicuteWakeWord = {
                 // ── Legacy: loop over multiple models ──
                 else {
                     for (const m of models) {
-                        const out = await m.session.run({ input: new ort.Tensor('float32', input, [1, dscnnMelTime, N_MELS]) });
+                        const out = await m.session.run({ input: new ort.Tensor('float32', input, [1, dscnnMelTime, dscnnNMels]) });
                         scores.push(out[Object.keys(out)[0]].data[0]);
                         words.push(m.name); cfList.push(m.consFrames);
                     }
@@ -403,6 +407,7 @@ window.VoicuteWakeWord = {
             setL1: v => L1 = v, setL2: v => L2 = v, setL3: v => L3 = v, setL4: v => L4 = v, setL5: v => L5 = v,
             setL5Delta: v => l5delta = Math.max(1, Math.min(300, v)),
             isLoaded: () => !!melSession && models.length > 0,
+            audioSamplesNeeded: () => audioSamplesNeeded,
             getModels: () => models.map(m => ({ name: m.name, consFrames: m.consFrames })),
             debug,
         };
