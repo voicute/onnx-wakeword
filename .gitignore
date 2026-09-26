@@ -6,3 +6,7 @@ __pycache__/
 models/zh/doubaodoubao_test.onnx
 models/model_info_doubaodoubao_test.json
 models/multi_N10_b478cd_v9.3.zip
+
+# Android build artifacts (belt & suspenders; android/.gitignore has the specifics)
+android/app/build/
+android/.gradle/
