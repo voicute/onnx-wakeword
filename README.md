@@ -64,7 +64,9 @@ Tested on **v9.3 models**.
 |--------|-------|
 | ONNX size | ~128KB (FP32) / ~74KB (INT8) |
 | Desktop inference | <5ms / frame |
-| ESP32-S3 TFLite Invoke (included demo) | ~155ms / frame |
+| ESP32-S3 TFLite Invoke (included demo) | ~51ms / frame (live AFE demo) |
+
+The isolated `Invoke()` baseline is about 39.5–40.2 ms; the published ~51 ms figure includes the live ESP-SR AFE pipeline and its scheduling/cache contention.
 
 ### Recall
 

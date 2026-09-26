@@ -21,7 +21,7 @@ SDK 接收 16 kHz PCM，负责 Mel 特征、INT8 TFLite 推理、模型 head 后
 | 存储 | 8 MB Octal PSRAM，16 MB Flash |
 | 音频 | 4 颗 MEMS 麦克风、ES7210；ES8311 输出；16 kHz PCM |
 | 开发框架 | ESP-IDF 6.0.1 |
-| 推理环境 | esp-tflite-micro 1.3.5；ESP-SR MultiNet5 英文模型 |
+| 推理环境 | esp-tflite-micro 1.4.1 + ESP-NN 1.4.1；ESP-SR MultiNet5 英文模型 |
 
 SDK 可以移植到其他 ESP32-S3 开发板，但需要适配麦克风、Codec BSP 和内存配置。当前 Demo 尚未验证其他 ESP32 芯片系列。
 
@@ -38,4 +38,4 @@ SDK 可以移植到其他 ESP32-S3 开发板，但需要适配麦克风、Codec 
 
 ## 实测性能
 
-上述平台下，Mel 提取约 28.5–33 ms，TFLite `Invoke()` 约 154.9–155.7 ms，每 160 ms 调度最新的 98 帧窗口。性能会随模型和芯片变化。
+在 ESP32-S3 240 MHz、98 帧模型（esp-tflite-micro 1.4.1 + ESP-NN 1.4.1）下，Mel 提取约 29 ms；TFLite `Invoke()` 单独测量约 39.5–40.2 ms（平均约 39.7 ms），在完整 Demo 应用（ESP-SR AFE 喂音与 MultiNet 同板并行运行）中实测墙钟约 51 ms。随附的两个 98 帧模型（参考模型 `hey_robot` 与 `doubaodoubao`）均已上板实测，结果一致。性能会随模型、主频和芯片变化。

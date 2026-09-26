@@ -10,3 +10,9 @@ models/multi_N10_b478cd_v9.3.zip
 # Android build artifacts (belt & suspenders; android/.gitignore has the specifics)
 android/app/build/
 android/.gradle/
+
+# Local model backups & test bundles (kept on disk, not for the repo)
+models/doubaodoubao.tflite
+models/head_doubaodoubao.h
+models_mt200_smoke/
+node_modules/

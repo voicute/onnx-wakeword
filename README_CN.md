@@ -27,7 +27,9 @@ onnx-wakeword 是一个开源、完全离线的**唤醒词与关键词检测（K
 |------|------|
 | ONNX 大小 | ~128KB (FP32) / ~74KB (INT8) |
 | 桌面推理 | <5ms / 帧 |
-| ESP32-S3 TFLite Invoke（内置 Demo） | 约 155ms / 帧 |
+| ESP32-S3 TFLite Invoke（内置 Demo） | 约 51ms / 帧（完整 AFE Demo） |
+
+单独测量 `Invoke()` 的基线约为 39.5–40.2 ms；对外公布的约 51 ms 包含实时 ESP-SR AFE 流程，以及并行运行带来的调度和缓存开销。
 
 ### 召回率
 
