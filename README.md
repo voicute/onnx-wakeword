@@ -208,6 +208,8 @@ Multi-keyword:
 
 Multi-keyword demo models are included in `models/` — see the **Multi-keyword Models** section above.
 
+> **`mel_time`** is the model's input window in mel frames: 98 ≈ 1.0 s, 150 ≈ 1.5 s, 200 ≈ 2.0 s. Since v10.0 it is auto-selected at training time to cover each wake word's speech tail (long words get larger windows). Engines read it from `model_info.json` — no manual configuration needed. The bundled demo models in `models/` use 98.
+
 ---
 
 ## Usage
@@ -310,6 +312,8 @@ onnx-wakeword/
 ---
 
 ## Version
+
+**v10.0 (2026-09)** — Adaptive recognition window for long wake words, +35% speaking-rate coverage.
 
 **v9.3 (2026-06)** — Multi-keyword support, English keywords, false-trigger improvements.
 

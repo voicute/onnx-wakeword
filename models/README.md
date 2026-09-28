@@ -196,7 +196,10 @@ engine.load('models/zh/multi_commands_v9.3.zip', 'models/melspectrogram.onnx')
 
 | 版本 | 主要更新 |
 |------|------|
+| v10.0 | 长词自适应识别窗, +35% 语速覆盖 |
 | v9.3 | 优化误唤醒率 |
+
+> 当前内置演示模型仍为 v9.3（mel_time=98）。v10.0 特性适用于新训练的模型，引擎端自动兼容两种窗长。
 | v9.2 | 扩展训练数据 |
 | v9.1 | 增强远场识别 |
 | v9.0 | Causal TCN 新架构 |
