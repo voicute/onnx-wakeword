@@ -54,7 +54,7 @@ Current models from [voicute.com](https://www.voicute.com):
 | 小娜 / 你好小娜 / 小娜小娜 (multi) | `multi_xiaona_v9.3.zip` | v9.3-multi |
 | 播放控制指令 ×10 (multi) | `multi_commands_v9.3.zip` | v9.3-multi |
 
-> **Voice edition (语音定制版)**: Standard TTS training + real user recordings (50x weight) + 80 epochs of training. Achieves ~17% lower false-trigger rate compared to the standard edition, with more stable recognition for specific user pronunciation patterns.
+> **Voice edition (语音定制版)**: Standard TTS training + weighted real user recordings. Achieves ~17% lower false-trigger rate compared to the standard edition, with more stable recognition for specific user pronunciation patterns.
 
 ### False-trigger optimization pairs (5 languages)
 
@@ -151,7 +151,7 @@ One ONNX model outputs N keyword probabilities in a single inference. Model size
 | Croissant | `fr/` | `croissant.onnx` | v9.3 |
 | Martina / Tina / Hey Tina (多关键词) | `de/` | `multi_martina_v9.3.zip` | v9.3-multi |
 
-> **语音定制版 (voice)**: 标准 TTS 基础上加入真人录音 x50 权重 + 80 epoch 训练，误触发率比标准版低约 17%。
+> **语音定制版 (voice)**: 标准 TTS 基础上加入真人录音加权训练，误触发率比标准版低约 17%。
 
 ### 多关键词演示包
 
