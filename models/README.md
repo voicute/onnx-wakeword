@@ -124,10 +124,13 @@ One ONNX model outputs N keyword probabilities in a single inference. Model size
 
 | Version | Changes |
 |:-------:|---------|
+| v10.0 | Expanded training data, improved long wake word support |
 | v9.3 | Reduced false-trigger rate, expanded voice coverage |
 | v9.2 | Expanded training data diversity |
 | v9.1 | Improved far-field recognition |
 | v9.0 | New Causal TCN architecture |
+
+> Bundled demo models remain v9.3 (mel_time=98). v10.0 features apply to newly trained models; engines auto-handle both window lengths.
 
 ---
 
@@ -177,8 +180,6 @@ engine.load('models/zh/multi_commands_v9.3.zip', 'models/melspectrogram.onnx')
 
 ### 误触发优化对比模型 (5 种语言)
 
-### 误触发优化对比模型 (5 种语言)
-
 五个生产关键词的优化前后模型对（每种语言一对），每对用该词交付时的**词标语料**（同语言 Common Voice 朗读语音 + 音乐 + 家用噪声/静音，训练留出；时长见行内标注），裸模型、阈值 0.5、40ms 滑窗、按触发文件计：
 
 | 关键词 | 语言 | 语料 | 优化前 (基线) | 优化后 (优化版) | 优化前 → 后 (次/小时) | 降幅 | 召回变化 |
@@ -198,8 +199,8 @@ engine.load('models/zh/multi_commands_v9.3.zip', 'models/melspectrogram.onnx')
 |------|------|
 | v10.0 | 长词自适应识别窗, +35% 语速覆盖 |
 | v9.3 | 优化误唤醒率 |
-
-> 当前内置演示模型仍为 v9.3（mel_time=98）。v10.0 特性适用于新训练的模型，引擎端自动兼容两种窗长。
 | v9.2 | 扩展训练数据 |
 | v9.1 | 增强远场识别 |
 | v9.0 | Causal TCN 新架构 |
+
+> 当前内置演示模型仍为 v9.3（mel_time=98）。v10.0 特性适用于新训练的模型，引擎端自动兼容两种窗长。
