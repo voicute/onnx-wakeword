@@ -26,7 +26,9 @@ extern "C" {
 #endif
 
 #define MAX_WAKE_WORDS 3
-#define TFLITE_ARENA_SIZE (64 * 1024)  // Model uses ~54KB; keep arena small enough for internal SRAM
+// Multi-keyword mt150 test build: AllocateTensors measured 58540 bytes used,
+// so the 64KB arena still fits (keep internal SRAM — PSRAM arena slows Invoke).
+#define TFLITE_ARENA_SIZE (64 * 1024)
 
 typedef struct {
     char     wake_word[32];          // 唤醒词文本

@@ -19,8 +19,9 @@ static const char *TAG = "Recognizer";
 static model_registry_t    g_registry;
 static recognizer_config_t g_cfg;
 static float               mel_buffer[MEL_TIME][MEL_N_MELS];
-static voice_event_callback_t g_cb = NULL;
-static void              *g_cb_ud = NULL;
+static voice_event_callback_t g_cbs[MAX_WAKE_WORDS] = {0};
+static void              *g_cb_uds[MAX_WAKE_WORDS] = {0};
+static uint8_t             g_active[MAX_WAKE_WORDS] = {0};  // per-model gate
 static dl_state_t         g_dl[MAX_WAKE_WORDS];   // L1-L5 per model
 
 // Posterior smoothing state (max over last SMOOTH_N frames), file-scope so it
@@ -77,6 +78,7 @@ void recognizer_start(const recognizer_config_t *cfg) {
         dl_set_l4_enabled(&g_dl[i], cfg->l4_enabled);
         dl_set_l5_enabled(&g_dl[i], cfg->l5_enabled);
         g_dl[i].l5_delta = cfg->l5_delta > 0 ? cfg->l5_delta : L5_DELTA;
+        g_active[i] = 1;
     }
 
     ESP_LOGI(TAG, "Ready: %d models, thr=%.2f L1=%d L2=%d L3=%d L4=%d L5=%d L5delta=%.0f",
@@ -108,7 +110,19 @@ void recognizer_evaluate_silence(float rms, int64_t now_ms) {
         dl_record(&g_dl[i], 0.0f, "", rms, now_ms);
 }
 void recognizer_register_callback(int idx, voice_event_callback_t cb, void *ud) {
-    g_cb = cb; g_cb_ud = ud;
+    if (idx < 0 || idx >= MAX_WAKE_WORDS) return;
+    g_cbs[idx] = cb; g_cb_uds[idx] = ud;
+}
+
+void recognizer_set_active(int idx, int enabled) {
+    if (idx < 0 || idx >= MAX_WAKE_WORDS) return;
+    g_active[idx] = (uint8_t)(enabled != 0);
+}
+
+int recognizer_num_models(void) { return g_registry.num_models; }
+const char *recognizer_model_word(int idx) {
+    if (idx < 0 || idx >= g_registry.num_models) return "";
+    return g_registry.models[idx].wake_word;
 }
 
 // ---- Run one frame ----
@@ -122,7 +136,7 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms) {
 
     for (int m = 0; m < g_registry.num_models; m++) {
         wake_model_t *model = &g_registry.models[m];
-        if (!model->interpreter) continue;
+        if (!model->interpreter || !g_active[m]) continue;
 
         // Fill input — shape [1, 98, 32] time-major
         // Flat layout: mel[t * 32 + f] = mel_buffer[t][f]
@@ -168,7 +182,7 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms) {
             prob = g_cfg.postprocess(
                 model->output_tensor->data.int8,
                 model->output_tensor->params.scale,
-                model->output_tensor->params.zero_point);
+                model->output_tensor->params.zero_point, m);
         } else {
             prob = model->output_tensor->data.f[0];  // float fallback
         }
@@ -209,10 +223,10 @@ void recognizer_run_frame(const int16_t *pcm, float rms, int64_t now_ms) {
                      (double)(t_invoke_end - t_invoke_start) / 1000.0,
                      trigger ? " *TRIG*" : "");
 
-        // Fire callback if detection pipeline confirmed
-        if (trigger != NULL && g_cb) {
+        // Fire this model's callback if detection pipeline confirmed
+        if (trigger != NULL && g_cbs[m]) {
             voice_evt_data_t evt = { .awaken_channel = 0 };
-            g_cb(VOICE_EVT_AWAKEN, evt, g_cb_ud);
+            g_cbs[m](VOICE_EVT_AWAKEN, evt, g_cb_uds[m]);
         }
     }
 }

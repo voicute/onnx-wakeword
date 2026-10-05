@@ -13,9 +13,11 @@ typedef union { int awaken_channel; int cmd_id; } voice_evt_data_t;
 typedef void (*voice_event_callback_t)(voice_event_t, voice_evt_data_t, void*);
 
 // Postprocess: backbone INT8 output [256] → float prob [0,1]
-// Called after TFLite Invoke, before L1-L5 detection pipeline
+// Called after TFLite Invoke, before L1-L5 detection pipeline.
+// model_idx identifies which registered model produced the output, so one
+// callback can dispatch per-model heads (e.g. wake head vs command heads).
 typedef float (*kws_postprocess_fn)(const int8_t *backbone_out,
-                                    float out_scale, int out_zero);
+                                    float out_scale, int out_zero, int model_idx);
 
 typedef struct {
     char  model_path[64];
@@ -28,7 +30,17 @@ typedef struct {
 // Init model + detection state (no ring buffer needed)
 void recognizer_start(const recognizer_config_t *cfg);
 void recognizer_stop(void);
+// Register the event callback for model[idx] (each model fires its own callback)
 void recognizer_register_callback(int idx, voice_event_callback_t cb, void *user);
+
+// Enable/disable inference per model without reloading (e.g. wake model only
+// in IDLE, command model only in COMMAND). Disabled models skip Invoke entirely.
+void recognizer_set_active(int idx, int enabled);
+
+// Registry introspection: models[i].wake_word is the tflite filename stem,
+// so the app can locate models by name (SPIFFS readdir order is not guaranteed).
+int recognizer_num_models(void);
+const char *recognizer_model_word(int idx);
 
 // Run one inference frame on pre-captured PCM window
 // now_ms: current time in ms (for L1-L5 detection pipeline)
