@@ -55,11 +55,14 @@ models/de/
 ├── hallolumo_r1_1_x654af9_tflite.zip   "Hallo Lumo" wake model
 │     ├── hallo_lumo.tflite              int8 backbone (filename stem = model id)
 │     └── head.h                         float MultiProto head (KWS_MEL_TIME 150, K=5)
-├── licht_multi_v10.0_de_tflite.zip     "Licht rot/blau/grün/weiß" command model
+├── licht_multi_v10.0_de_tflite.zip     "Licht rot/blau/grün/weiß" command model (board-verified demo)
 │     ├── licht_multi.tflite             int8 backbone
 │     ├── head.h                         multi head (KWS_HEAD_N 4, KWS_HEAD_K 3)
 │     ├── model_info.json                mel config, words, per-word thresholds
 │     └── _report.txt                    training/eval report
+├── multi_N4_1a070e_v10.0_multi_tflite.zip  same 4 Licht keywords, task-chain export (task 571)
+│     ├── multi_N4_1a070e.tflite         int8 backbone (named after the multi_N<n>_<sig> workspace)
+│     └── head.h                         multi head (N=4, K=3; word order in KWS_WAKE_WORD_0..3)
 ├── hallolumo_r1_1_x654af9.zip          ONNX variant (for Android/Web/Python; no head.h)
 └── ...                                 older ONNX builds kept for reference
 ```

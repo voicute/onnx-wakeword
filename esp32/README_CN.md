@@ -46,11 +46,14 @@ models/de/
 ├── hallolumo_r1_1_x654af9_tflite.zip   "Hallo Lumo" 唤醒模型
 │     ├── hallo_lumo.tflite              int8 backbone（文件名 stem = 模型标识）
 │     └── head.h                         float MultiProto 头（KWS_MEL_TIME 150, K=5）
-├── licht_multi_v10.0_de_tflite.zip     "Licht rot/blau/grün/weiß" 命令模型
+├── licht_multi_v10.0_de_tflite.zip     "Licht rot/blau/grün/weiß" 命令模型（上板验证版）
 │     ├── licht_multi.tflite             int8 backbone
 │     ├── head.h                         多头（KWS_HEAD_N 4, KWS_HEAD_K 3）
 │     ├── model_info.json                mel 配置、词表、每词阈值
 │     └── _report.txt                    训练/评估报告
+├── multi_N4_1a070e_v10.0_multi_tflite.zip  同一组 Licht 关键词，任务链导出（任务 571）
+│     ├── multi_N4_1a070e.tflite         int8 backbone（按 multi_N<n>_<sig> 工作区命名）
+│     └── head.h                         多头（N=4, K=3；词序在 KWS_WAKE_WORD_0..3）
 ├── hallolumo_r1_1_x654af9.zip          ONNX 版（Android/Web/Python 用；不含 head.h）
 └── ...                                 旧 ONNX 产物留作参考
 ```
