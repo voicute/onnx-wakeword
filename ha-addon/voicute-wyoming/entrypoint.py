@@ -16,7 +16,7 @@ URI = "tcp://0.0.0.0:10400"
 
 # Defaults must stay in sync with config.yaml's `options` block.
 DEFAULTS = {
-    "model_info": "/app/models/model_info.json",   # bundled demo; point to /data/... for custom
+    "model_info": "/app/models/model_info.json",   # bundled demo; point to /share/voicute/... for custom
     "mel": "/app/models/melspectrogram.onnx",      # bundled, universal — no upload needed
     "threshold": 0.4,
     "cooldown": 1500,

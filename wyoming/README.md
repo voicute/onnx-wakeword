@@ -36,7 +36,7 @@ python wyoming/wyoming_voicute.py \
 From the repo root:
 
 ```bash
-pip install onnxruntime numpy
+pip install onnxruntime numpy "wyoming>=1.10.0"
 
 python wyoming/wyoming_voicute.py \
     --model-info models/model_info.json \
@@ -74,7 +74,7 @@ This starts the service with the bundled demo keyword (**hey limi**) on `tcp://0
 | `--preload` | — | Wake words to advertise to HA |
 | `--threshold` | 0.40 | Detection threshold (0–1) |
 | `--cooldown` | 1500 | Cooldown in ms |
-| `--L1 / --L3 / --L5` | 1 / 1 / 0 | Anti-false-trigger layers |
+| `--L1 / --L3 / --L5` | 0 / 1 / 0 | Anti-false-trigger layers |
 | `--debug` | off | Verbose logging |
 
 ## Docker

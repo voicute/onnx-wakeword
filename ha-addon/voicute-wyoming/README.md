@@ -18,13 +18,13 @@ Custom wake word detection for Home Assistant, powered by Voicute.
 4. In Home Assistant → Settings → Devices & services → Add Integration → **Wyoming Protocol**, enter the HA host IP and port `10400`
 5. Pick "Voicute" as the wake word engine in your voice assistant's wake-word configuration
 
-> **Custom keyword**: upload your `model_info.json` + `.onnx` model to `/data/` (via the Samba/SSH/File editor add-ons), then set the `model_info` option to `/data/model_info.json`.
+> **Custom keyword**: put your `model_info.json` + `.onnx` model in `/share/voicute/` on the host (e.g. via the Samba share or the File editor add-on — `/share` is the HA shared folder), then set the `model_info` option to `/share/voicute/model_info.json`. Relative model paths inside `model_info.json` (e.g. `zh/xiaona.onnx`) resolve against the JSON file's own directory, so keep the same folder layout there.
 
 ## Configuration
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `model_info` | `/app/models/model_info.json` | Bundled demo model; point to `/data/...` for custom |
+| `model_info` | `/app/models/model_info.json` | Bundled demo model; point to `/share/voicute/...` for custom |
 | `mel` | `/app/models/melspectrogram.onnx` | Universal mel model (bundled, no upload needed) |
 | `threshold` | `0.4` | Detection threshold (0–1) |
 | `cooldown` | `1500` | Cooldown in ms between triggers |

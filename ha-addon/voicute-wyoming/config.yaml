@@ -1,5 +1,5 @@
 name: "Voicute Wake Word"
-version: "1.1.0"
+version: "1.1.1"
 slug: "voicute-wyoming"
 description: "Custom wake word detection powered by Voicute — supports Chinese, English, and 150+ languages with sub-130KB models"
 url: "https://github.com/voicute/onnx-wakeword"
@@ -9,6 +9,11 @@ arch:
 startup: application
 boot: auto
 host_network: true
+# /share is the only HA folder reachable from other add-ons (Samba, File
+# editor). Mounted read-only so users can supply custom models there
+# without SSH-ing into the add-on's private /data volume.
+map:
+  - share:ro
 options:
   model_info: "/app/models/model_info.json"
   mel: "/app/models/melspectrogram.onnx"

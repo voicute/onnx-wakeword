@@ -10,13 +10,10 @@ COPY models/melspectrogram.onnx ./models/
 COPY models/model_info.json ./models/
 COPY models/en/hey_friday.onnx ./models/en/
 COPY models/zh/xiaona_r1.onnx ./models/zh/
-COPY models/zh/xiaona_r0.onnx ./models/zh/
 COPY models/zh/nihaoxiaona_r1.onnx ./models/zh/
-COPY models/zh/nihaoxiaona_r0.onnx ./models/zh/
 COPY models/zh/doubaodoubao_r1.onnx ./models/zh/
-COPY models/zh/doubaodoubao_r0.onnx ./models/zh/
 
-RUN pip install --no-cache-dir onnxruntime numpy
+RUN pip install --no-cache-dir onnxruntime numpy "wyoming>=1.10.0"
 
 LABEL org.opencontainers.image.source="https://github.com/voicute/onnx-wakeword" \
       org.opencontainers.image.description="Custom wake word detection — Wyoming protocol service for Home Assistant" \
