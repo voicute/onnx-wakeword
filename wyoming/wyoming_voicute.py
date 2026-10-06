@@ -46,36 +46,58 @@ _LOGGER = logging.getLogger("voicute-wyoming")
 STRIDE_SAMPLES = SAMPLE_RATE // 20  # Process every 50ms (800 samples), matches web/wakeword.js
 
 SERVICE_NAME = "voicute"
-SERVICE_VERSION = "1.1.1"
+SERVICE_VERSION = "1.1.2"
 SERVICE_URL = "https://github.com/voicute/onnx-wakeword"
 
-# --debug: append received PCM here for offline analysis (temp dir)
-DUMP_PATH = str(Path(__file__).resolve().parent / "debug_dump.pcm")
+# --dump-audio: append received PCM here for offline analysis. Capped —
+# satellites stream continuously, so an uncapped dump fills small disks.
+DUMP_PATH = Path(__file__).resolve().parent / "debug_dump.pcm"
+DUMP_MAX_BYTES = 20 * 1024 * 1024  # rotate to debug_dump.1.pcm beyond this
+_DUMP_AUDIO = False  # set by --dump-audio in main()
 
 
-def _model_language(model_file: str, phrase: str = "") -> str:
-    """Guess a BCP-47 language from the model path ('en/hey.onnx' → 'en')."""
+def _dump_pcm(raw: bytes) -> None:
+    try:
+        if DUMP_PATH.exists() and DUMP_PATH.stat().st_size > DUMP_MAX_BYTES:
+            DUMP_PATH.replace(DUMP_PATH.with_name("debug_dump.1.pcm"))
+        with open(DUMP_PATH, "ab") as f:
+            f.write(raw)
+    except OSError:
+        pass  # dumping must never take the wake service down
+
+
+def _model_language(model_file: str, phrase: str = "",
+                    explicit: str | None = None) -> str:
+    """Model language for the Info event.
+
+    An explicit "language" (or "lang") field in model_info.json wins — the
+    path heuristic below mislabels models whose model_file sits next to
+    model_info.json (e.g. 'models/fr/model_info.json' with
+    "model_file": "salutnova.onnx"). Otherwise guess from the path
+    ('en/hey.onnx' → 'en'), else from a CJK check on the phrase.
+    """
+    if explicit:
+        return str(explicit).lower()
     parts = Path(model_file.replace("\\", "/")).parts
     if parts and len(parts[0]) == 2 and parts[0].isalpha():
         return parts[0].lower()
-    # No usable path (ZIP bundle): fall back to a CJK check on the phrase.
     return "zh" if any("一" <= c <= "鿿" for c in phrase) else "en"
 
 
-def build_info(words: list[tuple[str, str]]) -> Info:
-    """Wyoming Info event from (wake word, model_file) pairs."""
+def build_info(words: list[tuple[str, str, str | None]]) -> Info:
+    """Wyoming Info event from (wake word, model_file, language) triples."""
     attribution = Attribution(name="Voicute", url=SERVICE_URL)
     models = [
         WakeModel(
             name=name,
             description=f"Wake phrase: {name}",
-            languages=[_model_language(model_file, name)],
+            languages=[_model_language(model_file, name, lang)],
             attribution=attribution,
             installed=True,
             version=SERVICE_VERSION,
             phrase=name,
         )
-        for name, model_file in words
+        for name, model_file, lang in words
     ]
     return Info(
         wake=[
@@ -126,10 +148,9 @@ class VoicuteEventHandler(AsyncEventHandler):
             chunk = AudioChunk.from_event(event)
             pcm = self._converter.convert(chunk)
 
-            # --debug: dump received PCM for offline analysis
-            if _LOGGER.isEnabledFor(logging.DEBUG):
-                with open(DUMP_PATH, "ab") as f:
-                    f.write(bytes(pcm.audio))
+            # --dump-audio: append received PCM for offline analysis
+            if _DUMP_AUDIO:
+                _dump_pcm(bytes(pcm.audio))
 
             detection = self.service.process_audio(
                 bytes(pcm.audio), self._audio, self._detect_names
@@ -163,12 +184,14 @@ class VoicuteWyomingService:
         self._last_prob_log = 0.0  # --debug: throttle per-second prob report
 
     @staticmethod
-    def _load_name_to_file(model_info_path: str) -> dict[str, str]:
-        """wake word → model_file from the raw model_info.json.
+    def _load_name_to_file(model_info_path: str) -> dict[str, tuple[str, str | None]]:
+        """wake word → (model_file, language) from the raw model_info.json.
 
         The engine drops the file paths at load time; the Info event needs
-        them back for per-model language detection. ZIP bundles (which the
-        engine also accepts) fall back to empty paths.
+        them back for per-model language detection. The optional "language"
+        ("lang" also accepted) field is per-entry under multi_model, or
+        top-level otherwise. ZIP bundles (which the engine also accepts)
+        fall back to empty paths.
         """
         try:
             with open(model_info_path, "r", encoding="utf-8") as f:
@@ -180,24 +203,32 @@ class VoicuteWyomingService:
         except OSError:
             return {}
 
-        out: dict[str, str] = {}
+        top_lang = info.get("language") or info.get("lang")
+
+        def _entry(model_file: str, lang=None) -> tuple[str, str | None]:
+            return (model_file, str(lang).lower() if lang else top_lang)
+
+        out: dict[str, tuple[str, str | None]] = {}
         if info.get("model_type") == "multi_keyword":
             model_file = info.get("model_file", "model.onnx")
             for kw in info.get("keywords", []):
                 name = kw if isinstance(kw, str) else kw.get("name", "")
-                out[name] = model_file
+                out[name] = _entry(model_file)
         elif info.get("multi_model"):
             for m in info.get("models", []):
-                out[m.get("wake_word", "")] = m.get("model_file", "")
+                out[m.get("wake_word", "")] = _entry(m.get("model_file", ""),
+                                                     m.get("language") or m.get("lang"))
         else:
-            out[info.get("wake_word", "")] = info.get("model_file", "model.onnx")
+            out[info.get("wake_word", "")] = _entry(info.get("model_file", "model.onnx"))
         return out
 
-    def word_list(self) -> list[tuple[str, str]]:
-        """(wake word, model_file) pairs for the Info event."""
+    def word_list(self) -> list[tuple[str, str, str | None]]:
+        """(wake word, model_file, language) triples for the Info event."""
         if self.preload_word:
-            return [(self.preload_word, self._name_to_file.get(self.preload_word, ""))]
-        return [(m["name"], self._name_to_file.get(m["name"], ""))
+            name, entry = self.preload_word, self._name_to_file.get(
+                self.preload_word, ("", None))
+            return [(name, entry[0], entry[1])]
+        return [(m["name"], *self._name_to_file.get(m["name"], ("", None)))
                 for m in self.engine.models]
 
     def engine_reset_state(self) -> None:
@@ -219,13 +250,22 @@ class VoicuteWyomingService:
         needed_bytes = self.engine.audio_samples_needed * 2
         stride_bytes = STRIDE_SAMPLES * 2  # 50ms slide = 1600 bytes
 
-        if len(audio_buf) < needed_bytes:
-            return None  # Not enough audio yet
+        # Drain the backlog: one inference window per 50ms of audio. Clients
+        # sending chunks larger than the stride (HA satellites: 32ms ≈ 1024 B
+        # vs the 800 B stride) would otherwise accumulate lag until the
+        # backlog cap starts discarding the oldest audio.
+        detection_event = None
+        while len(audio_buf) >= needed_bytes:
+            event = self._process_window(
+                bytes(audio_buf[:needed_bytes]), detect_names)
+            if event is not None:
+                detection_event = event  # keep the latest wake
+            del audio_buf[:stride_bytes]
+        return detection_event
 
-        # Process one window per chunk (natural rate from audio chunks)
-        chunk = bytes(audio_buf[:needed_bytes])
-        del audio_buf[:stride_bytes]
-
+    def _process_window(self, chunk: bytes,
+                        detect_names: set[str] | None = None):
+        """Run one inference window; return a Detection event or None."""
         audio_i16 = np.frombuffer(chunk, dtype=np.int16)
         # Raw int16 range — matches Android (floatAudio[i]=(float)audio[i]),
         # Web (input[i]*32767), and python pyaudio path. The mel model expects
@@ -291,7 +331,13 @@ def main():
     p.add_argument("--L3", type=int, default=1)
     p.add_argument("--L5", type=int, default=0)
     p.add_argument("--debug", action="store_true")
+    p.add_argument("--dump-audio", action="store_true",
+                   help="append received PCM to wyoming/debug_dump.pcm for "
+                        "offline analysis (capped at 20 MB, then rotates)")
     args = p.parse_args()
+
+    global _DUMP_AUDIO
+    _DUMP_AUDIO = args.dump_audio
 
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,

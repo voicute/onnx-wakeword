@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   voicute:
-    image: voicute/voicute-wyoming:1.1.1
+    image: voicute/voicute-wyoming:1.1.2
     container_name: voicute-wyoming
     network_mode: host
     volumes:
