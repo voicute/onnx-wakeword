@@ -23,5 +23,6 @@
   },
   "model_size": {
     "onnx_kb": 134.6
-  }
+  },
+  "language": "de"
 }

@@ -6,5 +6,6 @@
   "model_file": "salutnova_r1.onnx",
   "mel_time": 98,
   "cons_frames": 3,
-  "n_mels": 32
+  "n_mels": 32,
+  "language": "fr"
 }

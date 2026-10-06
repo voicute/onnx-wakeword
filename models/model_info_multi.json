@@ -5,7 +5,7 @@
     "你好小娜",
     "小娜小娜"
   ],
- "model_file": "zh/multi_xiaona.onnx",
+  "model_file": "zh/multi_xiaona.onnx",
   "arch": "causal-ds-tcn-multi",
   "K": 3,
   "cons_frames": 2,
@@ -23,5 +23,6 @@
   },
   "model_size": {
     "onnx_kb": 135.0
-  }
+  },
+  "language": "zh"
 }

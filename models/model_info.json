@@ -8,25 +8,29 @@
       "wake_word": "Hey Friday",
       "model_file": "en/hey_friday.onnx",
       "emb_frames": 1,
-      "cons_frames": 3
+      "cons_frames": 3,
+      "language": "en"
     },
     {
       "wake_word": "小娜R1",
       "model_file": "zh/xiaona_r1.onnx",
       "emb_frames": 1,
-      "cons_frames": 2
+      "cons_frames": 2,
+      "language": "zh"
     },
     {
       "wake_word": "你好小娜R1",
       "model_file": "zh/nihaoxiaona_r1.onnx",
       "emb_frames": 1,
-      "cons_frames": 3
+      "cons_frames": 3,
+      "language": "zh"
     },
     {
       "wake_word": "豆包豆包R1",
       "model_file": "zh/doubaodoubao_r1.onnx",
       "emb_frames": 1,
-      "cons_frames": 3
+      "cons_frames": 3,
+      "language": "zh"
     }
   ]
 }
