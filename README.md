@@ -2,13 +2,13 @@
 
 [中文文档](README_CN.md)
 
-`KWS` · `Keyword Spotting` · `Wake Word` · `Custom Wake Word` · `ONNX` · `Edge AI` · `ESP32` · `Android` · `Offline` · `Privacy-First` · `Open Source`
+`KWS` · `Keyword Spotting` · `Wake Word` · `Custom Wake Word` · `ONNX` · `ESP32` · `Android` · `Home Assistant` · `Wyoming` · `Offline` · `Privacy-First` · `Open Source`
 
 > **100% offline · No audio upload · Model < 130KB · ESP32 / Android / Python / Web**
 
 onnx-wakeword is an open-source, fully offline inference engine for **wake-word detection and keyword spotting (KWS)**.
 
-Train your own custom wake word online ([voicute.com](https://www.voicute.com)), download the resulting model, and run it locally anywhere — browser, desktop, Android, ESP32, Home Assistant. **No audio is uploaded for inference.** Once downloaded, your model works entirely offline with zero ongoing cost.
+Train your own custom wake word online ([voicute.com](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=readme_en)), download the resulting model, and run it locally anywhere — browser, desktop, Android, ESP32, Home Assistant. **No audio is uploaded for inference.** Once downloaded, your model works entirely offline with zero ongoing cost.
 
 It provides the complete runtime path from audio preprocessing and Mel feature extraction to model execution, matched-head evaluation, and wake-word detection logic. The runtime is designed primarily for keyword models using a **causal temporal convolutional network (Causal TCN)** with a matched classification or prototype-based head. Fully self-developed training pipeline — not affiliated with Porcupine, OpenWakeWord, or any other project.
 
@@ -38,7 +38,7 @@ Audio → Mel features → Keyword TCN model → Matched classification/prototyp
 
 onnx-wakeword is a two-part system: custom keyword models trained online, then a fully offline runtime.
 
-1. [Train your own keyword](https://www.voicute.com) — enter any wake word (Chinese, English, Japanese, French, or German), platform generates TTS training data and trains the Causal TCN model (~30 min). Download the result.
+1. [Train your own keyword](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=train_en) — enter any wake word (Chinese, English, Japanese, French, or German), platform generates TTS training data and trains the Causal TCN model (~30 min). Download the result.
 2. Download the resulting `model.zip`, load it on any supported platform — browser, desktop, Android, ESP32, Home Assistant.
 
 Your trained model runs completely offline from this point on — no API calls, no monthly fees, no telemetry. **Your audio never leaves your device during inference.** For testing before you generate a custom keyword, run the demo models included in `models/` (中文 / English / Deutsch / Français) using the same pipeline at zero cost.
@@ -163,13 +163,13 @@ ZIP packages load **directly, no extraction needed** (Python and Web engines det
 engine.load('models/zh/multi_commands_v9.3.zip', 'models/melspectrogram.onnx')
 ```
 
-The callback returns the matched keyword and its confidence (see the per-platform examples in Usage below). Custom multi-keyword models are trained at [voicute.com](https://www.voicute.com).
+The callback returns the matched keyword and its confidence (see the per-platform examples in Usage below). Custom multi-keyword models are trained at [voicute.com](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=readme_en).
 
 ---
 
 ## Models
 
-onnx-wakeword is an inference-only open-source project. A compatible keyword model and its matched classification head are required at runtime. Custom models are trained online at [voicute.com](https://www.voicute.com). See the Training & Deployment section above for the full workflow.
+onnx-wakeword is an inference-only open-source project. A compatible keyword model and its matched classification head are required at runtime. Custom models are trained online at [voicute.com](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=readme_en). See the Training & Deployment section above for the full workflow.
 
 ### Model files
 
@@ -275,7 +275,7 @@ Settings → Devices & services → Add Integration → **Wyoming Protocol** →
 
 **3. Select the wake word** in Settings → Voice assistants → your assistant → Wake word.
 
-Full guide (live-mic test, docker-compose, Home Assistant add-on): [`wyoming/README.md`](wyoming/README.md).
+Full guide (live-mic test, docker-compose, Home Assistant add-on): [`wyoming/README.md`](wyoming/README.md). Prefer a tutorial with screenshots and a browser-based wake word test? See [Train a custom wake word for Home Assistant](https://www.voicute.com/articles/home-assistant-wake-word.html?utm_source=github&utm_medium=readme&utm_content=ha_article_en).
 
 ---
 

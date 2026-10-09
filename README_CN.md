@@ -1,7 +1,7 @@
 # onnx-wakeword — 离线唤醒词与关键词推理引擎
 
 
-`KWS` · `关键词识别` · `唤醒词` · `语音唤醒` · `自定义唤醒词` · `离线语音识别` · `隐私优先` · `不上传音频` · `Keyword Spotting` · `Wake Word` · `ONNX` · `端侧推理` · `ESP32` · `Android` · `开源`
+`KWS` · `关键词识别` · `唤醒词` · `语音唤醒` · `自定义唤醒词` · `离线语音识别` · `隐私优先` · `不上传音频` · `Keyword Spotting` · `Wake Word` · `ONNX` · `端侧推理` · `ESP32` · `Android` · `Home Assistant` · `Wyoming` · `开源`
 
 > **离线运行 · 不上传音频 · 模型 < 130KB · ESP32/Android/Python/Web 全平台**
 
@@ -11,7 +11,7 @@ onnx-wakeword 是一个开源、完全离线的**唤醒词与关键词检测（K
 
 项目提供从音频预处理、Mel 特征提取、模型执行、配套分类头计算到唤醒判定的完整运行时，主要面向采用**因果时序卷积网络（Causal TCN）**及配套分类头或原型头的关键词模型。训练管线完全自研，不依赖 Porcupine、OpenWakeWord 或其他第三方项目。
 
-仓库提供 Python、Web、Android 的 ONNX 推理实现，以及针对 ESP32-S3 优化的 INT8 TFLite 推理实现。**所有推理均在本地完成，不需要上传音频**。完整的流程是：在 [voicute.com](https://www.voicute.com) 在线训练你的自定义关键词模型，下载后在任何支持的平台上离线加载运行。训练一次，永久免费使用，无 API 调用、无月费。
+仓库提供 Python、Web、Android 的 ONNX 推理实现，以及针对 ESP32-S3 优化的 INT8 TFLite 推理实现。**所有推理均在本地完成，不需要上传音频**。完整的流程是：在 [voicute.com](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=readme_cn) 在线训练你的自定义关键词模型，下载后在任何支持的平台上离线加载运行。训练一次，永久免费使用，无 API 调用、无月费。
 
 ### 推理流程
 
@@ -125,13 +125,13 @@ ZIP 压缩包**直接加载即可，无需解压**（Python / Web 引擎自动�
 engine.load('models/zh/multi_commands_v9.3.zip', 'models/melspectrogram.onnx')
 ```
 
-回调返回命中的关键词和置信度（见各平台调用示例）。自定义多关键词模型在 [voicute.com](https://www.voicute.com) 训练生成。
+回调返回命中的关键词和置信度（见各平台调用示例）。自定义多关键词模型在 [voicute.com](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=readme_cn) 训练生成。
 
 ## 训练与部署
 
 onnx-wakeword 采用「在线训练 + 离线运行」架构：
 
-1. [输入你的关键词](https://www.voicute.com)（中/英/日/法/德），平台自动生成 TTS 训练数据并训练 Causal TCN 模型（~30 分钟）
+1. [输入你的关键词](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=train_cn)（中/英/日/法/德），平台自动生成 TTS 训练数据并训练 Causal TCN 模型（~30 分钟）
 2. 下载 `model.zip`，在任何支持的平台上用本仓库推理引擎加载运行
 
 **模型在平台上训练**。训练完成后下载的模型完全离线运行——**推理时你的音频永远不会离开你的设备**。想先免费试用？`models/` 目录内置多语言演示模型，可以用相同流程零成本验证效果。
@@ -144,7 +144,7 @@ onnx-wakeword 采用「在线训练 + 离线运行」架构：
 
 ## 模型
 
-onnx-wakeword 是一个只提供推理代码的开源项目，运行时需要兼容的关键词模型及其配套分类头。自定义模型在 [voicute.com](https://www.voicute.com) 在线生成，详见上方「训练与部署」章节。
+onnx-wakeword 是一个只提供推理代码的开源项目，运行时需要兼容的关键词模型及其配套分类头。自定义模型在 [voicute.com](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=readme_cn) 在线生成，详见上方「训练与部署」章节。
 
 ## 模型文件
 
@@ -281,7 +281,7 @@ docker run -d --name voicute-wakeword --restart unless-stopped --network host \
 
 **3. 语音助手选唤醒词：** 设置 → 语音助手 → 你的助手 → Wake word。
 
-完整指南（麦克风实时测试、docker-compose、Home Assistant 加载项）：[`wyoming/README.md`](wyoming/README.md)。
+完整指南（麦克风实时测试、docker-compose、Home Assistant 加载项）：[`wyoming/README.md`](wyoming/README.md)。想要带截图的分步教程和浏览器在线试词，看[中文版 Home Assistant 自定义唤醒词指南](https://www.voicute.com/articles/home-assistant-custom-wake-word-zh.html?utm_source=github&utm_medium=readme&utm_content=ha_article_zh)。
 
 ## 防误触发检测层
 
