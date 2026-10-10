@@ -18,7 +18,7 @@ Current models from [voicute.com](https://www.voicute.com):
 | Hey Jarvis / Jarvis / Hi Jarvis (multi) | `multi_jarvis_v9.3.zip` | v9.3-multi |
 | Hey Friday | `hey_friday.onnx` | v9.3 |
 
-> Custom models are available at [voicute.com](https://www.voicute.com). Currently supported languages: **Chinese, English, French, German, and Japanese**.
+> Custom models are available at [voicute.com](https://www.voicute.com). Currently supported languages: **Chinese, English, French, German, Japanese, Spanish, and Hindi**.
 
 ### Japanese (`ja/`)
 
@@ -40,6 +40,23 @@ Current models from [voicute.com](https://www.voicute.com):
 | Salut Nova (optimized) | `salutnova_r1.onnx` | v9.3 |
 | Monsieur Sadin | `monsieur_sadin.onnx` | v9.3 |
 | Croissant | `croissant.onnx` | v9.3 |
+| Lumière rouge / bleue / verte / blanche (multi, R0) | `multi_N4_f97a7e_v10.0.zip` | v10.0-multi |
+
+### Spanish (`es/`)
+
+| Keyword | Model File | Version |
+|---------|-----------|:-------:|
+| Hola Orion (optimized) | `Hola Orion_v10.0_basic_r1.zip` | v10.0 |
+| Hola Orion (baseline) | `Hola Orion_v10.0_basic.zip` | v10.0 |
+| Luz roja / azul / verde / blanca (multi, R0) | `multi_N4_990ee7_v10.0.zip` | v10.0-multi |
+
+### Hindi (`hi/`)
+
+| Keyword | Model File | Version |
+|---------|-----------|:-------:|
+| हैलो तारक (optimized) | `हैलो तारक_v10.0_basic_r1.zip` | v10.0 |
+| हैलो तारक (baseline) | `हैलो तारक_v10.0_basic.zip` | v10.0 |
+| लाल / नीली / हरी / सफ़ेद बत्ती (multi, R0) | `multi_N4_8a1d43_v10.0.zip` | v10.0-multi |
 
 ### Chinese (`zh/`)
 
@@ -56,9 +73,9 @@ Current models from [voicute.com](https://www.voicute.com):
 
 > **Voice edition (语音定制版)**: Standard TTS training + weighted real user recordings. Achieves ~17% lower false-trigger rate compared to the standard edition, with more stable recognition for specific user pronunciation patterns.
 
-### False-trigger optimization pairs (5 languages)
+### False-trigger optimization pairs (7 languages)
 
-Before/after model pairs for production keywords in **all five supported languages**. Each pair is measured on that keyword's own held-out negative corpus (same-language Common Voice read speech + music + household noise/silence, held out from training; corpus length per row), bare model, threshold 0.5, 40ms sliding window, counted per triggered file:
+Before/after model pairs for production keywords in **all seven supported languages**. Each pair is measured on that keyword's own held-out negative corpus (same-language Common Voice read speech + music + household noise/silence, held out from training; corpus length per row), bare model, threshold 0.5, 40ms sliding window, counted per triggered file:
 
 | Keyword | Language | Corpus | Before (baseline) | After (optimized) | Before → After (triggers/h) | Reduction | Recall |
 |---------|:-------:|---:|---------|---------|---:|---:|---|
@@ -67,8 +84,10 @@ Before/after model pairs for production keywords in **all five supported languag
 | Salut Nova | FR | 22.6h | `salutnova_r0.onnx` | `salutnova_r1.onnx` | 222.7 → 4.5 | −98.0% | 100% → 100% |
 | Apfelstrudel | DE | 24.4h | `apfelstrudel_r0.onnx` | `apfelstrudel_r1.onnx` | 265.3 → 2.7 | −99.0% | 97.0% → 98.5% |
 | みらい | JA | 12.1h | `mirai_r0.onnx` | `mirai_r1.onnx` | 330.9 → 5.1 | −98.5% | 97.8% → 100% |
+| Hola Orion | ES | 20.8h | `Hola Orion_v10.0_basic.zip` | `Hola Orion_v10.0_basic_r1.zip` | 456.7 → 2.9 | −99.4% | 99.8% → 99.3% |
+| हैलो तारक | HI | 18.5h | `हैलो तारक_v10.0_basic.zip` | `हैलो तारक_v10.0_basic_r1.zip` | 212.2 → 3.3 | −98.5% | 99.5% → 99.3% |
 
-> Verify it yourself: load the baseline and the optimized model side by side, play music or a video — the baseline fires repeatedly, the optimized model stays quiet. **The baseline is for comparison only; use the optimized model in production.** False-trigger optimization (hard negative mining retrain) is production-verified on all five supported languages.
+> Verify it yourself: load the baseline and the optimized model side by side, play music or a video — the baseline fires repeatedly, the optimized model stays quiet. **The baseline is for comparison only; use the optimized model in production.** False-trigger optimization (hard negative mining retrain) is production-verified on all seven supported languages.
 
 ## Multi-keyword Demo Packages
 
@@ -91,6 +110,16 @@ engine.load('models/zh/multi_commands_v9.3.zip', 'models/melspectrogram.onnx')
 | Directory | Package | Keywords | Size |
 |:---:|---------|---------|:---:|
 | `zh/` | `multi_commands_v9.3.zip` | 播放 · 暂停 · 下一首 · 上一首 · 开始播放 · 停止播放 · 声音大一点 · 声音小一点 · 静音 · 继续播放 | 167 KB |
+
+**Light control** — four color commands per language, one model per language:
+
+| Directory | Package | Keywords | Size |
+|:---:|---------|---------|:---:|
+| `es/` | `multi_N4_990ee7_v10.0.zip` | Luz roja · Luz azul · Luz verde · Luz blanca | 139 KB |
+| `fr/` | `multi_N4_f97a7e_v10.0.zip` | Lumière rouge · Lumière bleue · Lumière verte · Lumière blanche | 140 KB |
+| `hi/` | `multi_N4_8a1d43_v10.0.zip` | लाल बत्ती · नीली बत्ती · हरी बत्ती · सफ़ेद बत्ती | 140 KB |
+
+> All **multi-keyword demo packages are baseline (R0) models** — they have not gone through the false-trigger optimization flow yet. The optimization flow (negative scan → full retrain) **supports multi-keyword models too** and can produce optimized editions of these packages the same way (single-keyword optimized editions are available for comparison, see the pairs table above).
 
 ## How to Use
 

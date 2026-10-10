@@ -38,10 +38,10 @@ Audio → Mel features → Keyword TCN model → Matched classification/prototyp
 
 onnx-wakeword is a two-part system: custom keyword models trained online, then a fully offline runtime.
 
-1. [Train your own keyword](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=train_en) — enter any wake word (Chinese, English, Japanese, French, or German), platform generates TTS training data and trains the Causal TCN model (~30 min). Download the result.
+1. [Train your own keyword](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=train_en) — enter any wake word (Chinese, English, Japanese, French, German, Spanish, or Hindi), platform generates TTS training data and trains the Causal TCN model (~30 min). Download the result.
 2. Download the resulting `model.zip`, load it on any supported platform — browser, desktop, Android, ESP32, Home Assistant.
 
-Your trained model runs completely offline from this point on — no API calls, no monthly fees, no telemetry. **Your audio never leaves your device during inference.** For testing before you generate a custom keyword, run the demo models included in `models/` (中文 / English / Deutsch / Français) using the same pipeline at zero cost.
+Your trained model runs completely offline from this point on — no API calls, no monthly fees, no telemetry. **Your audio never leaves your device during inference.** For testing before you generate a custom keyword, run the demo models included in `models/` (中文 / English / Deutsch / Français / Español / हिन्दी) using the same pipeline at zero cost.
 
 ---
 
@@ -49,7 +49,7 @@ Your trained model runs completely offline from this point on — no API calls, 
 
 - **Sub-130KB models** — 25K parameters, fits ESP32 INT8 flash
 - **Multi-keyword** — detect 2–10+ keywords with a single model
-- **Multi-language** — Chinese, English, Japanese, French, and German
+- **Multi-language** — Chinese, English, Japanese, French, German, Spanish, and Hindi
 - **5-layer anti-false-trigger** — consecutive frames, peak/background ratio, cooldown, burst detection, energy jump
 - **ZIP packaging** — distribute model + config as a single file
 - **Home Assistant** — native Wyoming protocol service, Docker image, and HA add-on
@@ -81,6 +81,8 @@ Held-out Azure TTS, 400 samples × varied speed/pitch/volume; sliding-window pea
 | みらい (optimized) | JA | 100% |
 | 小娜 (optimized) | ZH | 98.3% |
 | 豆包豆包 (optimized) | ZH | 100% |
+| Hola Orion (optimized) | ES | 99.3% |
+| हैलो तारक (optimized) | HI | 99.3% |
 | Hey Robot | EN | 100% |
 | サクラ (Sakura) | JA | 100% |
 | Apfelstrudel (base) | DE | 99.4% |
@@ -104,6 +106,8 @@ Held-out Azure TTS, 400 samples × varied speed/pitch/volume; sliding-window pea
 | Salut Nova | 22.6h | 222.7 | 4.5 | −98.0% | 100% → 100% |
 | Apfelstrudel | 24.4h | 265.3 | 2.7 | −99.0% | 97.0% → 98.5% |
 | みらい | 12.1h | 330.9 | 5.1 | −98.5% | 97.8% → 100% |
+| Hola Orion | 20.8h | 456.7 | 2.9 | −99.4% | 99.8% → 99.3% |
+| हैलो तारक | 18.5h | 212.2 | 3.3 | −98.5% | 99.5% → 99.3% |
 
 > Numbers above are measured on **keyword-specific held-out corpora** (same-language Common Voice read speech + music + noise/silence, held out from training) — deliberately realistic mixtures, close to **worst case**. On clean public read speech (AISHELL-1, 5000-clip sample) the optimized 你好小娜 drops to **0.8 triggers/hour** (baseline: 35.5).
 
@@ -128,10 +132,12 @@ Comparison model pairs included in this repo (`models/<lang>/`):
 | Salut Nova | FR | `salutnova_r0.onnx` | `salutnova_r1.onnx` |
 | Apfelstrudel | DE | `apfelstrudel_r0.onnx` | `apfelstrudel_r1.onnx` |
 | みらい | JA | `mirai_r0.onnx` | `mirai_r1.onnx` |
+| Hola Orion | ES | `Hola Orion_v10.0_basic.zip` | `Hola Orion_v10.0_basic_r1.zip` |
+| हैलो तारक | HI | `हैलो तारक_v10.0_basic.zip` | `हैलो तारक_v10.0_basic_r1.zip` |
 
-> False-trigger optimization is production-verified on **all five supported languages** (Chinese, English, Japanese, French, German); the optimization flow (negative scan + full retrain) takes ~40–80 minutes in practice.
+> False-trigger optimization is production-verified on **all seven supported languages** (Chinese, English, Japanese, French, German, Spanish, Hindi); the optimization flow (negative scan + full retrain) takes ~40–80 minutes in practice.
 
-> Training takes ~30 minutes per keyword. Currently supports Chinese, English, Japanese, French, and German (5 languages).
+> Training takes ~30 minutes per keyword. Currently supports Chinese, English, Japanese, French, German, Spanish, and Hindi (7 languages).
 
 ---
 
@@ -156,6 +162,16 @@ Ten media commands in a single model:
 | Package | Keywords |
 |---------|---------|
 | `models/zh/multi_commands_v9.3.zip` | 播放 · 暂停 · 下一首 · 上一首 · 开始播放 · 停止播放 · 声音大一点 · 声音小一点 · 静音 · 继续播放 |
+
+Four light-control commands, one model per language:
+
+| Package | Keywords |
+|---------|---------|
+| `models/es/multi_N4_990ee7_v10.0.zip` | Luz roja · Luz azul · Luz verde · Luz blanca |
+| `models/fr/multi_N4_f97a7e_v10.0.zip` | Lumière rouge · Lumière bleue · Lumière verte · Lumière blanche |
+| `models/hi/multi_N4_8a1d43_v10.0.zip` | लाल बत्ती · नीली बत्ती · हरी बत्ती · सफ़ेद बत्ती |
+
+> All multi-keyword demo packages are **baseline (R0) models** — they have not gone through the false-trigger optimization flow yet. The optimization flow (negative scan → full retrain) **supports multi-keyword models too**, so an optimized edition of these packages can be generated the same way; single-keyword optimized editions are available in `models/<lang>/` (see the pairs table above).
 
 ZIP packages load **directly, no extraction needed** (Python and Web engines detect ZIP automatically):
 

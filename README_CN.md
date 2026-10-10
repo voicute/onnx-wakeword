@@ -44,6 +44,8 @@ onnx-wakeword 是一个开源、完全离线的**唤醒词与关键词检测（K
 | みらい（优化版） | 日语 | 100% |
 | 小娜（优化版） | 中文 | 98.3% |
 | 豆包豆包（优化版） | 中文 | 100% |
+| Hola Orion（优化版） | 西班牙语 | 99.3% |
+| हैलो तारक（优化版） | 印地语 | 99.3% |
 | Hey Robot | 英文 | 100% |
 | サクラ (Sakura) | 日语 | 100% |
 | Apfelstrudel（基础版） | 德语 | 99.4% |
@@ -67,6 +69,8 @@ onnx-wakeword 是一个开源、完全离线的**唤醒词与关键词检测（K
 | Salut Nova | 22.6h | 222.7 | 4.5 | −98.0% | 100% → 100% |
 | Apfelstrudel | 24.4h | 265.3 | 2.7 | −99.0% | 97.0% → 98.5% |
 | みらい | 12.1h | 330.9 | 5.1 | −98.5% | 97.8% → 100% |
+| Hola Orion | 20.8h | 456.7 | 2.9 | −99.4% | 99.8% → 99.3% |
+| हैलो तारक | 18.5h | 212.2 | 3.3 | −98.5% | 99.5% → 99.3% |
 
 > 表中数字测于**词标留出语料**（同语言 Common Voice 朗读语音 + 音乐 + 家用噪声/静音，训练留出；每行用该词自己的语料，时长见行内）——刻意贴近真实噪声的**最坏情况**口径。在干净的公开朗读语料 AISHELL-1（5000 条抽样）上更低：优化版你好小娜 **0.8 次/小时**（基线 35.5）。
 
@@ -93,9 +97,11 @@ onnx-wakeword 是一个开源、完全离线的**唤醒词与关键词检测（K
 | Salut Nova | 法语 | `salutnova_r0.onnx` | `salutnova_r1.onnx` |
 | Apfelstrudel | 德语 | `apfelstrudel_r0.onnx` | `apfelstrudel_r1.onnx` |
 | みらい | 日语 | `mirai_r0.onnx` | `mirai_r1.onnx` |
+| Hola Orion | 西班牙语 | `Hola Orion_v10.0_basic.zip` | `Hola Orion_v10.0_basic_r1.zip` |
+| हैलो तारक | 印地语 | `हैलो तारक_v10.0_basic.zip` | `हैलो तारक_v10.0_basic_r1.zip` |
 
-> 误触发优化已在**全部 5 种支持语言**（中/英/日/法/德）上完成生产验证；优化流程（负样本扫描 + 全量重训）实测约 40–80 分钟。
-> 单个关键词训练耗时约 30 分钟，目前支持中文、英文、日语、法语、德语。
+> 误触发优化已在**全部 7 种支持语言**（中/英/日/法/德/西班牙语/印地语）上完成生产验证；优化流程（负样本扫描 + 全量重训）实测约 40–80 分钟。
+> 单个关键词训练耗时约 30 分钟，目前支持中文、英文、日语、法语、德语、西班牙语、印地语（7 种语言）。
 
 ## 多关键词模型
 
@@ -119,6 +125,16 @@ onnx-wakeword 是一个开源、完全离线的**唤醒词与关键词检测（K
 |---------|---------|
 | `models/zh/multi_commands_v9.3.zip` | 播放 · 暂停 · 下一首 · 上一首 · 开始播放 · 停止播放 · 声音大一点 · 声音小一点 · 静音 · 继续播放 |
 
+四条灯光控制指令，每种语言一个模型：
+
+| 压缩包 | 关键词 |
+|---------|---------|
+| `models/es/multi_N4_990ee7_v10.0.zip` | Luz roja · Luz azul · Luz verde · Luz blanca |
+| `models/fr/multi_N4_f97a7e_v10.0.zip` | Lumière rouge · Lumière bleue · Lumière verte · Lumière blanche |
+| `models/hi/multi_N4_8a1d43_v10.0.zip` | लाल बत्ती · नीली बत्ती · हरी बत्ती · सफ़ेद बत्ती |
+
+> 所有**多关键词演示包均为基础版（R0）模型**，尚未做误触发优化；误触发优化流程（负样本扫描 → 全量重训）**同样支持多关键词模型**，需要时按相同流程即可生成优化版；单关键词的优化版见 `models/<语言>/`（对比模型表）。
+
 ZIP 压缩包**直接加载即可，无需解压**（Python / Web 引擎自动识别 ZIP 格式）：
 
 ```python
@@ -131,7 +147,7 @@ engine.load('models/zh/multi_commands_v9.3.zip', 'models/melspectrogram.onnx')
 
 onnx-wakeword 采用「在线训练 + 离线运行」架构：
 
-1. [输入你的关键词](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=train_cn)（中/英/日/法/德），平台自动生成 TTS 训练数据并训练 Causal TCN 模型（~30 分钟）
+1. [输入你的关键词](https://www.voicute.com/?utm_source=github&utm_medium=readme&utm_content=train_cn)（中/英/日/法/德/西班牙语/印地语），平台自动生成 TTS 训练数据并训练 Causal TCN 模型（~30 分钟）
 2. 下载 `model.zip`，在任何支持的平台上用本仓库推理引擎加载运行
 
 **模型在平台上训练**。训练完成后下载的模型完全离线运行——**推理时你的音频永远不会离开你的设备**。想先免费试用？`models/` 目录内置多语言演示模型，可以用相同流程零成本验证效果。
