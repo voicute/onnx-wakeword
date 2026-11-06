@@ -89,6 +89,43 @@ Before/after model pairs for production keywords in **all seven supported langua
 
 > Verify it yourself: load the baseline and the optimized model side by side, play music or a video — the baseline fires repeatedly, the optimized model stays quiet. **The baseline is for comparison only; use the optimized model in production.** False-trigger optimization (hard negative mining retrain) is production-verified on all seven supported languages.
 
+## ESP32 / TFLite Demo Bundles (optimized single keyword)
+
+Each bundle is a ZIP with the INT8 TFLite backbone, the matching float MultiProto head (`head.h`), and a `model_info.json` (mel config + threshold) — everything the ESP32 SDK needs. It is exported from the **same checkpoint as the optimized ONNX model** listed above, so the ESP32 build behaves identically to the Android/Web/Python ONNX demos.
+
+| Directory | Package | Keyword | Window |
+|:---:|---------|---------|:---:|
+| `en/` | `heyjarvis_r1_tflite.zip` | Hey Jarvis | 98 frames (1.012 s) |
+| `zh/` | `nihaoxiaona_r1_tflite.zip` | 你好小娜 | 98 frames (1.012 s) |
+| `de/` | `apfelstrudel_r1_tflite.zip` | Apfelstrudel | 98 frames (1.012 s) |
+| `fr/` | `salutnova_r1_tflite.zip` | Salut Nova | 98 frames (1.012 s) |
+| `ja/` | `mirai_r1_tflite.zip` | みらい | 98 frames (1.012 s) |
+| `es/` | `hola_orion_r1_tflite.zip` | Hola Orion | 150 frames (1.532 s) |
+| `hi/` | `hallo_tarak_r1_tflite.zip` | हैलो तारक | 150 frames (1.532 s) |
+
+```text
+<word>_r1_tflite.zip
+├── <word>.tflite      INT8 backbone, NHWC input [1, mel_time, 1, 32] (~66 KB)
+├── head.h             float MultiProto head (K=5) + mel config defines
+└── model_info.json    mel_time, layout, threshold — firmware must match these
+```
+
+**Always swap the `.tflite` and `head.h` together** — the head calibration constants are matched to the backbone. Set `KWS_MEL_TIME` (and the tensor arena) to the window in `model_info.json`; a mismatch fails fast at load. German board-verified demo models (`Hallo Lumo`, multi-keyword `Licht …`) already ship in `de/` alongside the bundle above. Integration guides: [Arduino route](../esp32/arduino/Voicute/README.md) · [ESP-IDF route](../esp32/idf/voicute/README.md).
+
+### Baseline (pre-optimization) ESP32 bundles
+
+The `_r0_tflite.zip` bundles are the **baseline (higher-recall, higher false-trigger) models** for the same keywords — exported from the same checkpoints as the `*_r0.onnx` / `*_v10.0_basic.zip` models above. Pick the R1 bundle for a quieter product; pick the R0 bundle if R1 feels hard to wake. Same ZIP layout, same window lengths per language.
+
+| Directory | Package | Keyword | Window |
+|:---:|---------|---------|:---:|
+| `en/` | `heyjarvis_r0_tflite.zip` | Hey Jarvis | 98 frames (1.012 s) |
+| `zh/` | `nihaoxiaona_r0_tflite.zip` | 你好小娜 | 98 frames (1.012 s) |
+| `de/` | `apfelstrudel_r0_tflite.zip` | Apfelstrudel | 98 frames (1.012 s) |
+| `fr/` | `salutnova_r0_tflite.zip` | Salut Nova | 98 frames (1.012 s) |
+| `ja/` | `mirai_r0_tflite.zip` | みらい | 98 frames (1.012 s) |
+| `es/` | `hola_orion_r0_tflite.zip` | Hola Orion | 150 frames (1.532 s) |
+| `hi/` | `hallo_tarak_r0_tflite.zip` | हैलो तारक | 150 frames (1.532 s) |
+
 ## Multi-keyword Demo Packages
 
 One model, N keywords — a single inference outputs all keyword probabilities. Each extra keyword adds only ~0.8KB; packages load **directly as ZIP, no extraction needed** (Python and Web engines detect the ZIP automatically):
@@ -184,6 +221,43 @@ One ONNX model outputs N keyword probabilities in a single inference. Model size
 | Martina / Tina / Hey Tina (多关键词) | `de/` | `multi_martina_v9.3.zip` | v9.3-multi |
 
 > **语音定制版 (voice)**: 标准 TTS 基础上加入真人录音加权训练，误触发率比标准版低约 17%。
+
+### ESP32 / TFLite 演示包 (优化版单关键词)
+
+每个压缩包含 INT8 TFLite 骨干网络 + 匹配的浮点 MultiProto 头 (`head.h`) + `model_info.json`（mel 配置与阈值），即 ESP32 SDK 所需的全部文件。**与上面列出的优化版 ONNX 模型来自同一个训练 checkpoint**，因此 ESP32 上跑的模型与 Android/Web/Python 的 ONNX 演示行为一致。
+
+| 目录 | 压缩包 | 关键词 | 识别窗 |
+|:---:|---------|---------|:---:|
+| `en/` | `heyjarvis_r1_tflite.zip` | Hey Jarvis | 98 帧 (1.012 s) |
+| `zh/` | `nihaoxiaona_r1_tflite.zip` | 你好小娜 | 98 帧 (1.012 s) |
+| `de/` | `apfelstrudel_r1_tflite.zip` | Apfelstrudel | 98 帧 (1.012 s) |
+| `fr/` | `salutnova_r1_tflite.zip` | Salut Nova | 98 帧 (1.012 s) |
+| `ja/` | `mirai_r1_tflite.zip` | みらい | 98 帧 (1.012 s) |
+| `es/` | `hola_orion_r1_tflite.zip` | Hola Orion | 150 帧 (1.532 s) |
+| `hi/` | `hallo_tarak_r1_tflite.zip` | हैलो तारक | 150 帧 (1.532 s) |
+
+```text
+<word>_r1_tflite.zip
+├── <word>.tflite      INT8 骨干网络, NHWC 输入 [1, mel_time, 1, 32] (~66 KB)
+├── head.h             浮点 MultiProto 头 (K=5) + mel 配置宏定义
+└── model_info.json    mel_time、layout、阈值 —— 固件必须与之匹配
+```
+
+**`.tflite` 和 `head.h` 必须成对更换** —— 头部的校准常数与骨干网络配套。`KWS_MEL_TIME`（及 tensor arena）按 `model_info.json` 里的窗口设置；不匹配会在加载时快速失败。德语板上验证过的演示模型（`Hallo Lumo`、多关键词 `Licht …`）已随 `de/` 目录中的上述包一并提供。集成指南：[Arduino 路线](../esp32/arduino/Voicute/README.md) · [ESP-IDF 路线](../esp32/idf/voicute/README.md)。
+
+### 基线版（优化前）ESP32 包
+
+`_r0_tflite.zip` 是同样这些词的**基线模型**（召回更高、误触发也更高），与上面的 `*_r0.onnx` / `*_v10.0_basic.zip` 同一 checkpoint 导出。产品追求安静选 R1 包；觉得 R1 难唤醒就换 R0 包。ZIP 结构相同，各语言窗口长度相同。
+
+| 目录 | 压缩包 | 关键词 | 识别窗 |
+|:---:|---------|---------|:---:|
+| `en/` | `heyjarvis_r0_tflite.zip` | Hey Jarvis | 98 帧 (1.012 s) |
+| `zh/` | `nihaoxiaona_r0_tflite.zip` | 你好小娜 | 98 帧 (1.012 s) |
+| `de/` | `apfelstrudel_r0_tflite.zip` | Apfelstrudel | 98 帧 (1.012 s) |
+| `fr/` | `salutnova_r0_tflite.zip` | Salut Nova | 98 帧 (1.012 s) |
+| `ja/` | `mirai_r0_tflite.zip` | みらい | 98 帧 (1.012 s) |
+| `es/` | `hola_orion_r0_tflite.zip` | Hola Orion | 150 帧 (1.532 s) |
+| `hi/` | `hallo_tarak_r0_tflite.zip` | हैलो तारक | 150 帧 (1.532 s) |
 
 ### 多关键词演示包
 
