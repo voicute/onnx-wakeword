@@ -1,6 +1,19 @@
 # Model Directory
 
+[中文文档](README_CN.md)
+
 Trained ONNX keyword spotting and wake word models.
+
+## Baseline (R0) vs false-trigger optimized (R1)
+
+Every production keyword ships as a pair, and the file suffix tells you which edition it is:
+
+| Suffix | Edition | What it is |
+|:------:|---------|------------|
+| `_r0` | **Baseline** | The first-pass model, before false-trigger optimization. Recall margin is slightly higher, but it false-triggers far more often. Shipped for side-by-side comparison — and as a fallback if the optimized model feels hard to wake on your hardware. |
+| `_r1` | **False-trigger optimized** | Retrained with hard negatives mined from that keyword's own false-trigger corpus: **~89–99% fewer false triggers, recall within ~1pp of baseline**. **Use this edition in production.** |
+
+Tables below use the same convention: *(optimized)* = R1, *(baseline)* = R0, *(multi, R0)* = a multi-keyword package still in baseline form. Demo models without a suffix (e.g. `manbo.onnx`, the v9.3 `multi_*.zip` packages) predate the pair convention and are baseline models. See the [optimization pairs table](#false-trigger-optimization-pairs-7-languages) for measured before/after numbers.
 
 ## Shared Model
 
@@ -197,113 +210,3 @@ One ONNX model outputs N keyword probabilities in a single inference. Model size
 | v9.0 | New Causal TCN architecture |
 
 > Bundled demo models remain v9.3 (mel_time=98). v10.0 features apply to newly trained models; engines auto-handle both window lengths.
-
----
-
-## 中文说明
-
-### 演示模型 (多语言)
-
-| 关键词 | 目录 | 模型文件 | 版本 |
-|--------|:---:|---------|:---:|
-| 曼波 | `zh/` | `manbo.onnx` | v9.3 |
-| 曼波 (语音定制) | `zh/` | `manbo_voice_model.onnx` | v9.3-voice |
-| 你好电脑 | `zh/` | `nihaodiannao.onnx` | v9.3 |
-| 开始播放 | `zh/` | `kaishibofang.onnx` | v9.3 |
-| 来福 | `zh/` | `laifu.onnx` | v9.3 |
-| 咕咕嘎嘎 | `zh/` | `gugugaga.onnx` | v9.3 |
-| 小娜 / 你好小娜 / 小娜小娜 (多关键词) | `zh/` | `multi_xiaona_v9.3.zip` | v9.3-multi |
-| 播放控制指令 ×10 (多关键词) | `zh/` | `multi_commands_v9.3.zip` | v9.3-multi |
-| Hey Friday | `en/` | `hey_friday.onnx` | v9.3 |
-| Hey Jarvis / Jarvis / Hi Jarvis (多关键词) | `en/` | `multi_jarvis_v9.3.zip` | v9.3-multi |
-| Monsieur Sadin | `fr/` | `monsieur_sadin.onnx` | v9.3 |
-| Croissant | `fr/` | `croissant.onnx` | v9.3 |
-| Martina / Tina / Hey Tina (多关键词) | `de/` | `multi_martina_v9.3.zip` | v9.3-multi |
-
-> **语音定制版 (voice)**: 标准 TTS 基础上加入真人录音加权训练，误触发率比标准版低约 17%。
-
-### ESP32 / TFLite 演示包 (优化版单关键词)
-
-每个压缩包含 INT8 TFLite 骨干网络 + 匹配的浮点 MultiProto 头 (`head.h`) + `model_info.json`（mel 配置与阈值），即 ESP32 SDK 所需的全部文件。**与上面列出的优化版 ONNX 模型来自同一个训练 checkpoint**，因此 ESP32 上跑的模型与 Android/Web/Python 的 ONNX 演示行为一致。
-
-| 目录 | 压缩包 | 关键词 | 识别窗 |
-|:---:|---------|---------|:---:|
-| `en/` | `heyjarvis_r1_tflite.zip` | Hey Jarvis | 98 帧 (1.012 s) |
-| `zh/` | `nihaoxiaona_r1_tflite.zip` | 你好小娜 | 98 帧 (1.012 s) |
-| `de/` | `apfelstrudel_r1_tflite.zip` | Apfelstrudel | 98 帧 (1.012 s) |
-| `fr/` | `salutnova_r1_tflite.zip` | Salut Nova | 98 帧 (1.012 s) |
-| `ja/` | `mirai_r1_tflite.zip` | みらい | 98 帧 (1.012 s) |
-| `es/` | `hola_orion_r1_tflite.zip` | Hola Orion | 150 帧 (1.532 s) |
-| `hi/` | `hallo_tarak_r1_tflite.zip` | हैलो तारक | 150 帧 (1.532 s) |
-
-```text
-<word>_r1_tflite.zip
-├── <word>.tflite      INT8 骨干网络, NHWC 输入 [1, mel_time, 1, 32] (~66 KB)
-├── head.h             浮点 MultiProto 头 (K=5) + mel 配置宏定义
-└── model_info.json    mel_time、layout、阈值 —— 固件必须与之匹配
-```
-
-**`.tflite` 和 `head.h` 必须成对更换** —— 头部的校准常数与骨干网络配套。`KWS_MEL_TIME`（及 tensor arena）按 `model_info.json` 里的窗口设置；不匹配会在加载时快速失败。德语板上验证过的演示模型（`Hallo Lumo`、多关键词 `Licht …`）已随 `de/` 目录中的上述包一并提供。集成指南：[Arduino 路线](../esp32/arduino/Voicute/README.md) · [ESP-IDF 路线](../esp32/idf/voicute/README.md)。
-
-### 基线版（优化前）ESP32 包
-
-`_r0_tflite.zip` 是同样这些词的**基线模型**（召回更高、误触发也更高），与上面的 `*_r0.onnx` / `*_v10.0_basic.zip` 同一 checkpoint 导出。产品追求安静选 R1 包；觉得 R1 难唤醒就换 R0 包。ZIP 结构相同，各语言窗口长度相同。
-
-| 目录 | 压缩包 | 关键词 | 识别窗 |
-|:---:|---------|---------|:---:|
-| `en/` | `heyjarvis_r0_tflite.zip` | Hey Jarvis | 98 帧 (1.012 s) |
-| `zh/` | `nihaoxiaona_r0_tflite.zip` | 你好小娜 | 98 帧 (1.012 s) |
-| `de/` | `apfelstrudel_r0_tflite.zip` | Apfelstrudel | 98 帧 (1.012 s) |
-| `fr/` | `salutnova_r0_tflite.zip` | Salut Nova | 98 帧 (1.012 s) |
-| `ja/` | `mirai_r0_tflite.zip` | みらい | 98 帧 (1.012 s) |
-| `es/` | `hola_orion_r0_tflite.zip` | Hola Orion | 150 帧 (1.532 s) |
-| `hi/` | `hallo_tarak_r0_tflite.zip` | हैलो तारक | 150 帧 (1.532 s) |
-
-### 多关键词演示包
-
-一个模型识别 N 个关键词——单次推理输出全部关键词的概率，每新增一个词只增加约 0.8KB。压缩包**直接加载即可，无需解压**（Python / Web 引擎自动识别 ZIP 格式）：
-
-```python
-engine.load('models/zh/multi_commands_v9.3.zip', 'models/melspectrogram.onnx')
-```
-
-**多唤醒词** —— 一个唤醒词的多种叫法收进同一个模型，用户怎么说都能唤醒：
-
-| 目录 | 压缩包 | 关键词 | 大小 |
-|:---:|---------|---------|:---:|
-| `zh/` | `multi_xiaona_v9.3.zip` | 小娜 · 你好小娜 · 小娜小娜 | 135 KB |
-| `en/` | `multi_jarvis_v9.3.zip` | Hey Jarvis · Jarvis · Hi Jarvis | 135 KB |
-| `de/` | `multi_martina_v9.3.zip` | Martina · Tina · Hey Tina | 135 KB |
-
-**语音控制** —— 十条播放器指令装进一个模型：
-
-| 目录 | 压缩包 | 关键词 | 大小 |
-|:---:|---------|---------|:---:|
-| `zh/` | `multi_commands_v9.3.zip` | 播放 · 暂停 · 下一首 · 上一首 · 开始播放 · 停止播放 · 声音大一点 · 声音小一点 · 静音 · 继续播放 | 167 KB |
-
-### 误触发优化对比模型 (5 种语言)
-
-五个生产关键词的优化前后模型对（每种语言一对），每对用该词交付时的**词标语料**（同语言 Common Voice 朗读语音 + 音乐 + 家用噪声/静音，训练留出；时长见行内标注），裸模型、阈值 0.5、40ms 滑窗、按触发文件计：
-
-| 关键词 | 语言 | 语料 | 优化前 (基线) | 优化后 (优化版) | 优化前 → 后 (次/小时) | 降幅 | 召回变化 |
-|---------|:---:|---:|---------|---------|---:|---:|---|
-| 你好小娜 | 中文 | 16.0h | `nihaoxiaona_r0.onnx` | `nihaoxiaona_r1.onnx` | 74.5 → 3.5 | −95.3% | 97.8% → 100% |
-| Hey Jarvis | 英语 | 26.9h | `heyjarvis_r0.onnx` | `heyjarvis_r1.onnx` | 44.6 → 4.8 | −89.2% | 100% → 99.0% |
-| Salut Nova | 法语 | 22.6h | `salutnova_r0.onnx` | `salutnova_r1.onnx` | 222.7 → 4.5 | −98.0% | 100% → 100% |
-| Apfelstrudel | 德语 | 24.4h | `apfelstrudel_r0.onnx` | `apfelstrudel_r1.onnx` | 265.3 → 2.7 | −99.0% | 97.0% → 98.5% |
-| みらい | 日语 | 12.1h | `mirai_r0.onnx` | `mirai_r1.onnx` | 330.9 → 5.1 | −98.5% | 97.8% → 100% |
-
-> 可自行验证：分别加载优化前基线与优化版，播放音乐或视频——基线频繁误触发，优化版保持安静。**基线仅作对比，正式使用请选优化版。**
-> 误触发优化（难负样本挖掘重训）已在全部 **5 种支持语言**上完成生产验证。
-
-### 版本说明
-
-| 版本 | 主要更新 |
-|------|------|
-| v10.0 | 长词自适应识别窗, +35% 语速覆盖 |
-| v9.3 | 优化误唤醒率 |
-| v9.2 | 扩展训练数据 |
-| v9.1 | 增强远场识别 |
-| v9.0 | Causal TCN 新架构 |
-
-> 当前内置演示模型仍为 v9.3（mel_time=98）。v10.0 特性适用于新训练的模型，引擎端自动兼容两种窗长。
