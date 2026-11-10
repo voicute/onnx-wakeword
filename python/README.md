@@ -66,26 +66,55 @@ A model bundle is `model_info.json` + one or more keyword `.onnx` files + `melsp
 
 ## Detection layers (L1–L5)
 
-All production detection logic is included and individually toggleable:
+All production detection logic (the port of the Voicute Android app's
+`DetectionLogic`) is included and individually toggleable. **Everything is
+off by default**: the models already carry strong false-trigger rejection,
+so out of the box the engine is a plain threshold gate — one frame above
+`threshold` triggers. Enable layers case-by-case for your environment:
 
 | Layer | Purpose | Default |
 | :---: | ------- | :-----: |
-| L1 | N consecutive frames above threshold (with brief-gap tolerance) | on |
+| L1 | N consecutive frames above threshold (see below) | off |
 | L2 | peak ≫ background (model-fluctuation filter) | off |
-| L3 | cooldown against double-triggers | on |
+| L3 | cooldown against double-triggers | off |
 | L4 | burst suppression (playback-loop filter) | off |
 | L5 | energy-jump gate (video/music filter, post-speech confirmation) | off |
 
-By default only L1 + L3 are active: the models already carry strong
-false-trigger rejection, so the extra gates are opt-in for noisy
-environments (TV / music playback nearby, etc.).
-
 ```python
-engine.set_L2(True)
-engine.set_L3(True)
+engine.set_L1(True)              # consecutive frames — the usual first upgrade
+engine.set_L3(True)              # cooldown, if the word can repeat rapidly
 engine.set_threshold(0.5)        # clamped to [0.3, 0.95]
 engine.set_cooldown(1500)        # ms
 ```
+
+### Consecutive frames (L1) — how it works
+
+The model scores every sliding window (~100 ms of audio at the default
+`mel_time=98`). A single window above threshold can be a transient: a
+click, a syllable of background speech that briefly resembles the wake
+word, or plain model fluctuation. Real wake-word speech, by contrast, is
+a 500 ms–1 s utterance — it produces a *run* of high scores as each
+window covers more of the phrase.
+
+L1 exploits that difference: it triggers only after the **same word**
+scores above threshold in **N consecutive windows** (`cons_frames`,
+default 3, read from `model_info.json`). Two refinements, matching the
+production Android behavior:
+
+- **Gap tolerance** — up to 2 sub-threshold windows in a row do *not*
+  reset the counter. Real speech dips between syllables; a hard reset
+  would miss fast or uneven utterances.
+- **Same-word check** — the counter is per word, so in multi-keyword
+  models two alternating words don't reinforce each other.
+
+Trade-offs: L1 adds ~`cons_frames` × frame-cadence latency (≈300 ms at
+3 windows) and can slightly hurt very fast, clipped utterances. Rule of
+thumb: start with it off for quiet-room use; turn it on (with
+`set_threshold` a bit lower, e.g. 0.4–0.5) for noisy rooms, far-field
+mics, or unattended always-on devices.
+
+CLI: `onnx-wakeword-demo --l1` (or `--all` for every layer); `--cons N`
+sets N when testing.
 
 `DetectionLogic` is also exported standalone for custom pipelines (see `mic_test.py` for the record/evaluate pattern).
 
@@ -147,7 +176,8 @@ onnx-wakeword-demo --wav speech.wav    # 离线扫描 WAV，无需麦克风
 - 自定义模型：`engine.load("你的/model_info.json")` 即可 —— mel 预处理模块已内置在包里，
   也可显式传第二个参数覆盖；支持绝对路径、ZIP 包（含 ZIP 内嵌 mel）
 - Python 端不需要 head.h：分类头在 ONNX 图内（head.h 拆分只存在于 ESP32/TFLite 路径）
-- L1–L5 检测层全部可开关（连帧门控 / 峰值背景比 / 冷却 / 防循环 / 能量跳变）
+- L1–L5 检测层全部可开关，**默认全关**（误触发抑制由模型本身承担，开箱即阈值门控；
+  嘈杂环境按需 `set_L1(True)` 开连续帧等，原理见上方 "Detection layers" 一节）
 - 无麦克风环境下核心推理照常可用（`predict()` / `detect()` 纯 numpy）
 - 核心包不依赖任何音频库；pyaudio 与 sounddevice 均为可选 extra，二选一即可
 - 免费多语言 Demo 模型见 [models/](../models/)；训练自定义唤醒词模型见 [voicute.com](https://www.voicute.com)

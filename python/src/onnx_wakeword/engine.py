@@ -52,12 +52,14 @@ class WakeWordEngine:
         self.l5_rms = 0   # RMS of the current window (feeds L5); set by the
                           # mic callback, or by the caller before detect()
         self._dl = DetectionLogic(thr=self.threshold, cons_frames=3)
-        # Engine defaults: consecutive frames (L1) + cooldown (L3) only.
-        # False-trigger reduction comes from the model itself; the other
-        # layers are opt-in via set_L2()/set_L4()/set_L5() (note L5 adds
-        # ~700ms trigger latency from post-speech confirmation).
+        # Engine defaults: all detection layers OFF — the model itself
+        # carries the false-trigger rejection, so out of the box the engine
+        # is a plain threshold gate (single frame above threshold triggers).
+        # Enable layers case-by-case for noisy deployments, e.g.
+        # set_L1(True) (consecutive frames) or set_L3(True) (cooldown);
+        # see README "Detection layers" for when each one helps.
         self._dl.l1, self._dl.l2, self._dl.l3, self._dl.l4, self._dl.l5 = \
-            True, False, True, False, False
+            False, False, False, False, False
 
         self._stream = None
         self._running = False

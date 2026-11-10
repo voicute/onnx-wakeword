@@ -76,6 +76,10 @@ def _run_wav(eng, dl, path, thr):
 def _run_mic(eng, path_info, path_mel, args):
     try:
         eng.load(path_info, path_mel)
+        if args.l1 or args.all:
+            eng.set_L1(True)
+        if args.all:
+            eng.set_L2(True); eng.set_L3(True); eng.set_L4(True); eng.set_L5(True)
         print(f'Loaded: {eng.get_models()}')
         print('Listening... (Ctrl+C to stop)')
         eng.start(
@@ -108,7 +112,8 @@ def main(argv=None):
     p.add_argument('--wav', help='run offline on this WAV file instead of the microphone')
     p.add_argument('--device', type=int, default=None, help='microphone input device index')
     p.add_argument('--threshold', type=float, default=0.5)
-    p.add_argument('--cons', type=int, default=3, help='L1 consecutive frames to trigger')
+    p.add_argument('--cons', type=int, default=3, help='L1 consecutive frames to trigger (with --l1)')
+    p.add_argument('--l1', action='store_true', help='enable L1: N consecutive frames above threshold')
     p.add_argument('--all', action='store_true', help='enable all detection layers L1-L5')
     p.add_argument('--list-devices', action='store_true', help='list audio input devices')
     args = p.parse_args(argv)
@@ -137,7 +142,8 @@ def main(argv=None):
     if args.wav:
         eng.load(info, mel)
         dl = DetectionLogic(thr=args.threshold, cons_frames=args.cons)
-        dl.l1, dl.l2, dl.l3, dl.l4, dl.l5 = True, args.all, args.all, args.all, args.all
+        dl.l1 = args.l1 or args.all
+        dl.l2, dl.l3, dl.l4, dl.l5 = args.all, args.all, args.all, args.all
         _run_wav(eng, dl, args.wav, args.threshold)
         return 0
     return _run_mic(eng, info, mel, args)
