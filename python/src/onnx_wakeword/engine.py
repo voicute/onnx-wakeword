@@ -21,6 +21,8 @@ import json, struct, time, wave, os
 import numpy as np
 import onnxruntime as ort
 
+from .detection_logic import DetectionLogic
+
 SAMPLE_RATE = 16000
 MEL_HOP = 160
 MEL_WIN = 400
@@ -42,34 +44,20 @@ class WakeWordEngine:
         self.keywords = []
         self.audio_samples_needed = 0
 
-        # Detection state
-        self.cons = 0
-        self.cons_word = ''
-        self.cons_gap = 0
-        self.last_trig = 0
-        self.blocked = 0
-        self.bg_ema = 0.001
-        self.peak_hist = np.zeros(128, dtype=np.float32)
-        self.time_hist = np.zeros(128, dtype=np.float64)
-        self.phi = 0
-
-        # Layer toggles
-        self.L1 = True
-        self.L2 = False
-        self.L3 = False
-        self.L4 = False
-        self.L5 = False
-        self.l5_rms = 0
-        self.l5_ratio = 3.0
-        self.rms_hist = np.zeros(128, dtype=np.float32)
-        self.rms_t_hist = np.zeros(128, dtype=np.float64)
-        self.l5_ri = 0
-        self.burst_t = np.zeros(8, dtype=np.float64)
-        self.burst_w = [''] * 8
-        self.bi = 0
-
+        # Detection pipeline: single production-parity implementation (the
+        # port of Android DetectionLogic.java). engine.detect() delegates
+        # here; mic_test.py / infer.py use the same class directly.
         self.threshold = 0.40
         self.cooldown_ms = 1500
+        self.l5_rms = 0   # RMS of the current window (feeds L5); set by the
+                          # mic callback, or by the caller before detect()
+        self._dl = DetectionLogic(thr=self.threshold, cons_frames=3)
+        # Engine defaults (same as the pre-package engine): L1 only.
+        # L2-L5 are opt-in via set_L2()..set_L5(); note L5 adds ~700ms
+        # trigger latency (post-speech confirmation).
+        self._dl.l1, self._dl.l2, self._dl.l3, self._dl.l4, self._dl.l5 = \
+            True, False, False, False, False
+
         self._stream = None
         self._running = False
 
@@ -257,73 +245,22 @@ class WakeWordEngine:
     # ═══════════════════════════
 
     def detect(self, word, prob, cons_frames, now=None):
-        """Run detection pipeline. Returns detected word or None."""
+        """Run the detection pipeline (L1-L5, Android DetectionLogic parity).
+
+        Returns the detected word or None. Feeds this frame into the shared
+        DetectionLogic history first (like the Android record→evaluate flow),
+        so L2 peak/background and L5 RMS history build up across calls.
+
+        L5 uses ``self.l5_rms`` as the current window's RMS — the pyaudio
+        callback sets it automatically; standalone callers should set it
+        before calling (L5 off by default, so 0 is fine otherwise).
+        """
         if now is None:
             now = time.time() * 1000
-        if not word:
-            self.cons = 0; self.cons_word = ''; self.cons_gap = 0; return None
-        if now < self.blocked:
-            self.cons = 0; self.cons_word = ''; self.cons_gap = 0; return None
-
-        hi = prob > self.threshold and word
-
-        # L5: energy jump (only for candidate frames above threshold)
-        if hi and self.L5 and self.l5_rms > 0:
-            ps, pe = now - 2000, now - 500
-            mask = (self.rms_t_hist > 0) & (self.rms_t_hist >= ps) & (self.rms_t_hist <= pe)
-            pN = mask.sum()
-            if pN >= 5:
-                pMin = self.rms_hist[mask].min()
-                ratio = self.l5_rms / max(pMin, 1)
-                block = self.l5_rms < pMin * self.l5_ratio
-                if not block and pMin < 50 and self.l5_rms < 80:
-                    block = True
-                if block:
-                    self.cons = 0; self.cons_word = ''; self.cons_gap = 0; return None
-
-        # L1: consecutive frames — allow brief gaps (MAX_GAP), matching android/web
-        if self.L1:
-            if hi and word == self.cons_word:
-                self.cons += 1; self.cons_gap = 0
-            elif hi:
-                self.cons_word = word; self.cons = 1; self.cons_gap = 0
-            elif self.cons > 0:
-                self.cons_gap += 1
-                if self.cons_gap > MAX_GAP:
-                    self.cons = 0; self.cons_word = ''; self.cons_gap = 0
-            if self.cons < cons_frames:
-                return None
-        elif not hi:
-            # L1 disabled: simple threshold gate
-            return None
-
-        # L2: peak/background
-        if self.L2:
-            self.peak_hist[self.phi] = prob
-            self.time_hist[self.phi] = now
-            self.phi = (self.phi + 1) % 128
-            if not word:
-                self.bg_ema = self.bg_ema * 0.995 + prob * 0.005
-            if prob <= self.bg_ema * 2.0:
-                self.cons = 0; self.cons_word = ''; return None
-
-        # L3: cooldown
-        if self.L3 and (now - self.last_trig) < self.cooldown_ms:
-            self.cons = 0; self.cons_word = ''; return None
-
-        # L4: burst
-        if self.L4:
-            self.burst_t[self.bi] = now; self.burst_w[self.bi] = word
-            self.bi = (self.bi + 1) % 8
-            bc = sum(1 for i in range(8) if self.burst_t[i] > 0 and
-                     (now - self.burst_t[i]) < 3000 and word == self.burst_w[i])
-            if bc >= 3:
-                self.blocked = now + 5000
-                self.cons = 0; self.cons_word = ''; return None
-
-        self.cons = 0; self.cons_word = ''; self.cons_gap = 0
-        self.last_trig = now
-        return word
+        self._dl.cons_frames = cons_frames
+        hi_word = word if (prob > self._dl.thr and word) else ''
+        self._dl.record(prob, hi_word, self.l5_rms, now)
+        return self._dl.evaluate(word, prob, self.l5_rms, now)
 
     # ═══════════════════════════
     # Microphone
@@ -359,10 +296,6 @@ class WakeWordEngine:
                 return (None, pyaudio.paContinue)
 
             engine.l5_rms = rms
-            engine.rms_hist[engine.l5_ri] = rms
-            engine.rms_t_hist[engine.l5_ri] = time.time() * 1000
-            engine.l5_ri = (engine.l5_ri + 1) % 128
-
             detected = engine.detect(
                 result['word'], result['prob'],
                 result['cons_frames'],
@@ -386,20 +319,23 @@ class WakeWordEngine:
     # ═══════════════════════════
 
     def _reset(self):
-        self.cons = 0; self.cons_word = ''; self.cons_gap = 0
-        self.last_trig = 0; self.blocked = 0; self.bg_ema = 0.001
-        self.peak_hist.fill(0); self.time_hist.fill(0); self.phi = 0
-        self.rms_hist.fill(0); self.rms_t_hist.fill(0); self.l5_ri = 0; self.l5_rms = 0
+        self.l5_rms = 0
+        self._dl.reset()
 
     def reset(self): self._reset()
-    def set_threshold(self, v): self.threshold = max(0.3, min(0.95, v))
-    def set_cooldown(self, ms): self.cooldown_ms = max(500, ms)
+    def set_threshold(self, v):
+        self.threshold = max(0.3, min(0.95, v))
+        self._dl.thr = self.threshold
+    def set_cooldown(self, ms):
+        self.cooldown_ms = max(500, ms)
+        self._dl.CD_MS = self.cooldown_ms
     def set_debug(self, v): pass  # stub for API compat
-    def set_L1(self, v): self.L1 = v
-    def set_L2(self, v): self.L2 = v
-    def set_L3(self, v): self.L3 = v
-    def set_L4(self, v): self.L4 = v
-    def set_L5(self, v): self.L5 = v
-    def set_L5_ratio(self, v): self.l5_ratio = max(2.0, min(8.0, v))
+    def set_L1(self, v): self._dl.l1 = bool(v)
+    def set_L2(self, v): self._dl.l2 = bool(v)
+    def set_L3(self, v): self._dl.l3 = bool(v)
+    def set_L4(self, v): self._dl.l4 = bool(v)
+    def set_L5(self, v): self._dl.l5 = bool(v)
+    def set_L5_delta(self, v): self._dl.l5_delta = int(v)
+    def set_L5_ratio(self, v): pass  # deprecated: DetectionLogic uses an absolute delta (set_L5_delta)
     def is_loaded(self): return self.mel_sess is not None and len(self.models) > 0
     def get_models(self): return [{'name': m['name'], 'cons_frames': m['cons_frames']} for m in self.models]

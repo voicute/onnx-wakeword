@@ -60,14 +60,18 @@ class DetectionLogic:
         # L1-L5
         if trigger_word is None:
             hi = prob > self.thr and bool(word)
-            if not hi: self.cons, self.cons_word, self.cons_gap = 0, '', 0; return None  # threshold gate, always active
             if self.l1:
+                # L1: consecutive frames with gap tolerance — a frame below
+                # threshold does NOT immediately reset; the counter survives
+                # up to MAX_GAP sub-threshold frames (matches Android).
                 if hi and word == self.cons_word: self.cons += 1; self.cons_gap = 0
                 elif hi: self.cons_word = word; self.cons = 1; self.cons_gap = 0
                 elif self.cons > 0:
                     self.cons_gap += 1
                     if self.cons_gap > self.MAX_GAP: self.cons, self.cons_word, self.cons_gap = 0, '', 0
                 if self.cons < self.cons_frames: return None
+            elif not hi:
+                return None  # L1 disabled: plain threshold gate
             # L2: peak/background ratio — matches Android DetectionLogic L2
             if self.l2:
                 peak = max([self.p_hist[i] for i in range(self.HIST)

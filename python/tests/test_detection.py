@@ -28,11 +28,16 @@ class TestThresholdGate:
         assert dl.evaluate(WORD, 0.49, 100, 1000) is None
         assert dl.evaluate(WORD, 0.51, 100, 1001) == WORD
 
-    def test_below_threshold_resets_counter(self):
+    def test_gap_frames_do_not_immediately_reset(self):
+        # Android parity: a sub-threshold frame does not reset the counter;
+        # it survives up to MAX_GAP=2 dip frames before resetting.
         dl = make_logic(cons=3)
-        dl.evaluate(WORD, 0.9, 100, 1000)
-        dl.evaluate(WORD, 0.9, 100, 1010)
-        dl.evaluate('', 0.1, 100, 1020)          # not hi → reset
+        dl.evaluate(WORD, 0.9, 100, 1000)        # cons=1
+        dl.evaluate(WORD, 0.9, 100, 1010)        # cons=2
+        dl.evaluate('', 0.1, 100, 1020)          # gap=1, counter survives
+        assert dl.cons == 2
+        dl.evaluate('', 0.1, 100, 1030)          # gap=2
+        dl.evaluate('', 0.1, 100, 1040)          # gap=3 > MAX_GAP → reset
         assert dl.cons == 0
 
 
@@ -43,24 +48,23 @@ class TestL1ConsecutiveFrames:
         assert dl.evaluate(WORD, 0.9, 100, 1010) is None   # cons=2
         assert dl.evaluate(WORD, 0.9, 100, 1020) == WORD   # cons=3 → trigger
 
-    def test_reset_then_recount(self):
+    def test_gap_then_recount(self):
+        # One dip frame within tolerance: counter continues, not restarted.
         dl = make_logic(cons=3)
-        dl.evaluate(WORD, 0.9, 100, 1000)
-        dl.evaluate('', 0.1, 100, 1010)                    # reset
-        dl.evaluate(WORD, 0.9, 100, 1020)                  # cons=1
-        dl.evaluate(WORD, 0.9, 100, 1030)                  # cons=2
-        assert dl.evaluate(WORD, 0.9, 100, 1040) == WORD   # cons=3
+        dl.evaluate(WORD, 0.9, 100, 1000)                  # cons=1
+        dl.evaluate('', 0.1, 100, 1010)                    # gap=1, survives
+        dl.evaluate(WORD, 0.9, 100, 1020)                  # cons=2
+        assert dl.evaluate(WORD, 0.9, 100, 1030) == WORD   # cons=3
 
 
 class TestEngineGapTolerance:
-    """The engine's own detect() keeps counting through brief prob dips
-    (word still reported) up to MAX_GAP=2 frames."""
+    """engine.detect() delegates to DetectionLogic and keeps counting
+    through brief prob dips (word still reported) up to MAX_GAP=2 frames."""
 
     @staticmethod
     def _engine():
         eng = WakeWordEngine()
-        eng.set_L1(True)
-        eng.threshold = 0.5
+        eng.set_threshold(0.5)
         return eng
 
     def test_dip_within_gap_keeps_count(self):
@@ -77,9 +81,9 @@ class TestEngineGapTolerance:
         eng.detect(WORD, 0.4, 3, now=1020)                  # gap=1
         eng.detect(WORD, 0.4, 3, now=1030)                  # gap=2
         eng.detect(WORD, 0.4, 3, now=1040)                  # gap=3 → reset
-        assert eng.cons == 0
-        eng.detect(WORD, 0.9, 3, now=1050)                  # cons=1
-        eng.detect(WORD, 0.9, 3, now=1060)                  # cons=2
+        # Counter restarted from 0: needs 3 fresh consecutive frames.
+        assert eng.detect(WORD, 0.9, 3, now=1050) is None   # cons=1
+        assert eng.detect(WORD, 0.9, 3, now=1060) is None   # cons=2
         assert eng.detect(WORD, 0.9, 3, now=1070) == WORD   # cons=3
 
 

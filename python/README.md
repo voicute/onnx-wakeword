@@ -94,6 +94,12 @@ result = engine.predict(audio)   # float32 array, int16 range, 16 kHz
 detected = engine.detect(result['word'], result['prob'], result['cons_frames'])
 ```
 
+`detect()` feeds one frame through the same DetectionLogic pipeline as the
+Android app (record → evaluate), so call it once per sliding window. If you
+enable L5, set `engine.l5_rms` (RMS of the current window) before each call —
+the built-in mic loop does this for you; L5 also adds ~700 ms trigger latency
+(post-speech confirmation).
+
 ## Repository scripts vs. package
 
 The legacy scripts still run unchanged (`python wakeword_engine.py`, `python mic_test.py`, `python infer.py`, `python infer_tflite.py`) — they now import the package. Use the package API for new code.
