@@ -77,8 +77,9 @@ class DetectionLogic:
                 peak = max([self.p_hist[i] for i in range(self.HIST)
                             if self.t_hist[i] > 0 and (now_ms - self.t_hist[i]) < self.PEAK_WIN] + [0])
                 if peak <= self.bg * 3: return None
-            # L3: cooldown
-            if self.l3 and (now_ms - self.last_trig) < self.CD_MS: return None
+            # L3: cooldown (skipped before the first trigger — last_trig==0
+            # is the "never triggered" sentinel, so a fresh engine is not muted)
+            if self.l3 and self.last_trig > 0 and (now_ms - self.last_trig) < self.CD_MS: return None
             # L4a: burst cooldown
             if self.l4 and now_ms < self.blocked: self.cons = 0; self.cons_word = ''; return None
             # L5a: energy jump

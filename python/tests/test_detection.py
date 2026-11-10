@@ -173,6 +173,25 @@ class TestEngineDetect:
         assert eng.detect(WORD, 0.9, 3, now=1010) is None
         assert eng.detect(WORD, 0.9, 3, now=1020) == WORD
 
+    def test_engine_defaults_l1_l3_only(self):
+        # Default contract: model carries the false-trigger rejection,
+        # engine ships with just L1 (consecutive frames) + L3 (cooldown).
+        eng = WakeWordEngine()
+        assert eng._dl.l1 is True and eng._dl.l3 is True
+        assert eng._dl.l2 is False and eng._dl.l4 is False and eng._dl.l5 is False
+
+    def test_engine_default_cooldown_blocks_retrigger(self):
+        eng = WakeWordEngine()
+        eng.set_threshold(0.5)
+        assert eng.detect(WORD, 0.9, 3, now=1000) is None      # cons=1
+        assert eng.detect(WORD, 0.9, 3, now=1010) is None      # cons=2
+        assert eng.detect(WORD, 0.9, 3, now=1020) == WORD      # first trigger
+        # within the 1500ms default cooldown: counted but suppressed
+        assert eng.detect(WORD, 0.9, 3, now=2000) is None
+        assert eng.detect(WORD, 0.9, 3, now=2010) is None
+        assert eng.detect(WORD, 0.9, 3, now=2020) is None
+        assert eng.detect(WORD, 0.9, 3, now=3000) == WORD      # past cooldown
+
     def test_engine_threshold_clamp(self):
         eng = WakeWordEngine()
         eng.set_threshold(5.0)

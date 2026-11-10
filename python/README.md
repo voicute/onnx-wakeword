@@ -72,9 +72,13 @@ All production detection logic is included and individually toggleable:
 | :---: | ------- | :-----: |
 | L1 | N consecutive frames above threshold (with brief-gap tolerance) | on |
 | L2 | peak ≫ background (model-fluctuation filter) | off |
-| L3 | cooldown against double-triggers | off |
+| L3 | cooldown against double-triggers | on |
 | L4 | burst suppression (playback-loop filter) | off |
 | L5 | energy-jump gate (video/music filter, post-speech confirmation) | off |
+
+By default only L1 + L3 are active: the models already carry strong
+false-trigger rejection, so the extra gates are opt-in for noisy
+environments (TV / music playback nearby, etc.).
 
 ```python
 engine.set_L2(True)
