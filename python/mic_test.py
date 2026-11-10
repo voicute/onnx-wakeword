@@ -13,9 +13,11 @@ import sys, os, time, argparse, glob, json
 import numpy as np
 import sounddevice as sd
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from detection_logic import DetectionLogic
-from wakeword_engine import WakeWordEngine
+try:
+    from onnx_wakeword import DetectionLogic, WakeWordEngine
+except ImportError:
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
+    from onnx_wakeword import DetectionLogic, WakeWordEngine
 
 MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'models')
 HOP, SR = 640, 16000

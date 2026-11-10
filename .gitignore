@@ -16,3 +16,9 @@ models/doubaodoubao.tflite
 models/head_doubaodoubao.h
 models_mt200_smoke/
 node_modules/
+
+# Python package build artifacts
+python/dist/
+python/build/
+*.egg-info/
+.pytest_cache/

@@ -1,167 +1,106 @@
 #!/usr/bin/env python3
-"""Voicute Wake Word — Linux inference (ONNX Runtime)
+"""Voicute Wake Word — streaming mic inference driven by the onnx_wakeword
+package (sounddevice flavor; wakeword_engine.py uses pyaudio).
 
 Usage:
-    pip install onnxruntime numpy sounddevice
+    pip install onnx-wakeword[sounddevice]
     python infer.py --model-dir ../models/
-    python infer.py --model-dir ../models/ --threshold 0.6
+    python infer.py --info ../models/en/model_info.json --threshold 0.6
 
-Place your trained .onnx model(s) + model_info.json in the model directory,
-alongside melspectrogram.onnx and embedding_model.onnx.
+Works with any model bundle: a directory containing model_info.json (or a
+multi_model / multi_keyword JSON) plus melspectrogram.onnx. With no
+arguments it loads the bundled English demo model.
 """
 
 import argparse
-import json
 import os
 import sys
 import time
-from collections import deque
 
 import numpy as np
-import onnxruntime as ort
 import sounddevice as sd
 
+try:
+    from onnx_wakeword import WakeWordEngine, DetectionLogic
+except ImportError:
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
+    from onnx_wakeword import WakeWordEngine, DetectionLogic
+
 SAMPLE_RATE = 16000
-MEL_HOP_SAMPLES = 160
-EMB_WINDOW = 76
-EMB_STEP = 8
-
-# ── Model loading ──
-
-def load_models(model_dir: str):
-    mel_path = os.path.join(model_dir, "melspectrogram.onnx")
-    emb_path = os.path.join(model_dir, "embedding_model.onnx")
-    info_path = os.path.join(model_dir, "model_info.json")
-
-    mel_session = ort.InferenceSession(mel_path, providers=["CPUExecutionProvider"])
-    emb_session = ort.InferenceSession(emb_path, providers=["CPUExecutionProvider"])
-
-    with open(info_path, "r", encoding="utf-8") as f:
-        info = json.load(f)
-
-    models = []
-    max_ef = 0
-
-    if info.get("multi_model") and info.get("models"):
-        for m in info["models"]:
-            session = ort.InferenceSession(
-                os.path.join(model_dir, m["model_file"]),
-                providers=["CPUExecutionProvider"])
-            ef = m["emb_frames"]
-            models.append({"name": m["wake_word"], "session": session, "emb_frames": ef})
-            max_ef = max(max_ef, ef)
-    else:
-        session = ort.InferenceSession(
-            os.path.join(model_dir, info["model_file"]),
-            providers=["CPUExecutionProvider"])
-        ef = info.get("emb_frames", 16)
-        models.append({"name": info["wake_word"], "session": session, "emb_frames": ef})
-        max_ef = ef
-
-    print(f"Loaded {len(models)} model(s), maxEmbFrames={max_ef}")
-    return mel_session, emb_session, models, max_ef
+HOP = 640  # process every 40 ms, sliding window
 
 
-# ── Inference ──
+def find_info(model_dir):
+    info = os.path.join(model_dir, 'model_info.json')
+    if os.path.exists(info):
+        return info
+    sys.exit(f'no model_info.json in {model_dir}')
 
-def detect(audio: np.ndarray, mel_sess, emb_sess, models, max_ef):
-    audio = audio.astype(np.float32)
-    if len(audio) < 32000:
-        audio = np.pad(audio, (0, 32000 - len(audio)))
-    audio = audio[:32000]
-
-    # Mel spectrogram
-    mel_in = audio.reshape(1, -1)
-    mel_out = mel_sess.run(None, {"input": mel_in})[0]
-    frames = mel_out.shape[2]
-    if frames < EMB_WINDOW:
-        return None
-
-    mel2d = mel_out[0, 0] / 10.0 + 2.0
-
-    # Embedding batch
-    start_frame = max(0, frames - EMB_WINDOW - (max_ef - 1) * EMB_STEP)
-    emb_batch = np.zeros((max_ef, EMB_WINDOW, 32, 1), dtype=np.float32)
-    for w in range(max_ef):
-        off = min(start_frame + w * EMB_STEP, frames - EMB_WINDOW)
-        for f in range(EMB_WINDOW):
-            for m in range(32):
-                emb_batch[w, f, m, 0] = mel2d[off + f, m]
-
-    emb_out = emb_sess.run(None, {"input_1": emb_batch})[0]
-    embeddings = emb_out  # [max_ef, 1, 1, 96]
-
-    # Run classifiers
-    K = len(models)
-    sigmoid_probs = np.zeros(K, dtype=np.float32)
-    for i, model in enumerate(models):
-        slice_start = max_ef - model["emb_frames"]
-        wake_in = np.zeros((1, model["emb_frames"], 96), dtype=np.float32)
-        for w in range(model["emb_frames"]):
-            for d in range(96):
-                wake_in[0, w, d] = embeddings[slice_start + w, 0, 0, d]
-        out = model["session"].run(None, {"input": wake_in})[0]
-        sigmoid_probs[i] = float(out[0, 0, 0])
-
-    # Sigmoid → Softmax
-    logits = np.zeros(K + 1, dtype=np.float32)
-    for i in range(K):
-        p = np.clip(sigmoid_probs[i], 1e-6, 1 - 1e-6)
-        logits[i] = np.log(p / (1 - p))
-    logits[K] = 0  # background
-
-    logits -= logits.max()
-    softmax = np.exp(logits)
-    softmax /= softmax.sum()
-
-    best_idx = np.argmax(softmax[:K])
-    return {
-        "wakeWord": models[best_idx]["name"],
-        "probability": float(softmax[best_idx]),
-        "background": float(softmax[K]),
-    }
-
-
-# ── CLI ──
 
 def main():
-    parser = argparse.ArgumentParser(description="Voicute Wake Word Inference")
-    parser.add_argument("--model-dir", default="../models/", help="Path to model directory")
-    parser.add_argument("--threshold", type=float, default=0.5, help="Detection threshold")
-    parser.add_argument("--cooldown", type=float, default=3.5, help="Cooldown in seconds")
-    parser.add_argument("--list-devices", action="store_true", help="List audio devices")
-    args = parser.parse_args()
+    p = argparse.ArgumentParser(description='Voicute Wake Word Inference (package API)')
+    p.add_argument('--model-dir', default='../models/', help='Directory with model_info.json + melspectrogram.onnx')
+    p.add_argument('--info', help='Path to model_info.json (overrides --model-dir)')
+    p.add_argument('--threshold', type=float, default=0.5, help='Detection threshold')
+    p.add_argument('--cons', type=int, default=3, help='L1 consecutive frames')
+    p.add_argument('--cooldown', type=float, default=3.5, help='Cooldown in seconds')
+    p.add_argument('--list-devices', action='store_true', help='List audio devices')
+    args = p.parse_args()
 
     if args.list_devices:
         print(sd.query_devices())
         return
 
-    mel_sess, emb_sess, models, max_ef = load_models(args.model_dir)
+    info_path = args.info or find_info(args.model_dir)
+    mel_path = os.path.join(os.path.dirname(info_path), 'melspectrogram.onnx')
 
-    audio_buffer = deque(maxlen=SAMPLE_RATE * 4)
-    last_detect = 0
+    eng = WakeWordEngine()
+    eng.load(info_path, mel_path)
+    eng.set_threshold(args.threshold)
+    eng.set_cooldown(int(args.cooldown * 1000))
 
-    def callback(indata, frames, time_info, status):
-        nonlocal last_detect
-        audio_buffer.extend(indata[:, 0])
-        if len(audio_buffer) < 32000:
+    dl = DetectionLogic(thr=args.threshold, cons_frames=args.cons)
+    dl.l1, dl.l2, dl.l3, dl.l4, dl.l5 = True, False, True, False, False
+
+    print(f'Loaded: {eng.get_models()}')
+    print(f'Listening... threshold={args.threshold} cooldown={args.cooldown}s')
+
+    ring = np.zeros(max(SAMPLE_RATE * 4, eng.audio_samples_needed + SAMPLE_RATE), dtype=np.float32)
+    pos = 0
+
+    def cb(indata, frames, time_info, status):
+        nonlocal pos
+        n = len(indata)
+        if pos + n > len(ring):
+            ring[:pos - n] = ring[n - pos:]
+            pos -= n
+        ring[pos:pos + n] = indata[:, 0] * 32767
+        pos += n
+        if pos < eng.audio_samples_needed:
             return
 
-        audio = np.array(audio_buffer)[-32000:].astype(np.float32)
-        result = detect(audio, mel_sess, emb_sess, models, max_ef)
+        chunk = ring[pos - eng.audio_samples_needed:pos].copy()
+        r = eng.predict(chunk)
+        if r is None:
+            return
+        prob = r['prob']
+        rms = float(np.sqrt(np.mean(chunk ** 2)))
+        now_ms = int(time.time() * 1000)
+        word = r['word'] if prob > args.threshold else ''
 
-        if result and result["probability"] > args.threshold:
-            now = time.time()
-            if now - last_detect > args.cooldown:
-                last_detect = now
-                print(f"\n>>> {result['wakeWord']} ({result['probability']:.2%})")
+        dl.record(prob, word, rms, now_ms)
+        result = dl.evaluate(word, prob, rms, now_ms)
+        if result:
+            print(f"\n>>> {result} (prob={prob:.3f} rms={rms:.0f})\n")
 
-    print(f"Listening... threshold={args.threshold} cooldown={args.cooldown}s")
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, callback=callback,
-                        dtype="float32", blocksize=4096):
-        while True:
-            time.sleep(0.1)
+    try:
+        with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, callback=cb,
+                            dtype='float32', blocksize=HOP):
+            while True:
+                time.sleep(0.1)
+    except KeyboardInterrupt:
+        print('\nDone.')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

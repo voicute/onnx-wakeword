@@ -19,7 +19,7 @@ Audio → Mel features → Keyword TCN model → Matched classification/prototyp
 Designed for keyword models built on a **causal temporal convolutional network (Causal TCN)** with a matched classification or prototype-based head. Training pipeline fully self-developed.
 
 - ONNX runtimes for **Python, Web, and Android**, plus an optimized INT8 TFLite runtime for **ESP32-S3**
-- Runs on browser, desktop (Linux / Windows / macOS), Raspberry Pi, Android, ESP32, and Home Assistant
+- Runs on browser, desktop (Linux / Windows / macOS), Android, ESP32, and Home Assistant (Raspberry Pi uses the same Python path — expected to work, not yet hardware-verified)
 - **100% local inference — no audio is ever uploaded**, no API calls, no telemetry
 - Demo models in `models/` (7 languages) let you test the full pipeline at zero cost
 
@@ -41,7 +41,7 @@ Supported languages: Chinese, English, German, French, Japanese, Spanish, and Hi
 | Platform | Directory | Entry Point |
 |----------|-----------|-------------|
 | **Web** | [`web/`](web/) | `wakeword.js` → `VoicuteWakeWord.create()` |
-| **Python** | [`python/`](python/) — Linux / Windows / macOS / Raspberry Pi | `wakeword_engine.py` → `WakeWordEngine()` |
+| **Python** | [`python/`](python/) — Linux / Windows / macOS / Raspberry Pi | `pip install onnx-wakeword` → `WakeWordEngine()` |
 | **Android** | [`android/`](android/) | `WakeWordEngine.java` |
 | **ESP32** | [`esp32/`](esp32/) | ESP-IDF component |
 | **Home Assistant** | [`wyoming/`](wyoming/) | `wyoming_voicute.py` → Wyoming protocol |
@@ -261,9 +261,25 @@ Multi-keyword demo models are included in `models/` — see the **Multi-keyword 
 
 ### Python
 
+**pip install (recommended):**
+
 ```bash
-pip install onnxruntime numpy pyaudio
+pip install onnx-wakeword                 # core inference (numpy + onnxruntime)
+pip install "onnx-wakeword[audio]"        # + pyaudio, for microphone streaming
 ```
+
+```python
+from onnx_wakeword import WakeWordEngine, get_demo_model
+
+engine = WakeWordEngine()
+engine.load(*get_demo_model())   # bundled "Hey Jarvis" demo model
+engine.set_L1(True)
+engine.start(lambda word, prob, info: print(f'Detected: {word} ({prob:.0%})'))
+```
+
+CLI demo: `onnx-wakeword-demo` (microphone) or `onnx-wakeword-demo --wav speech.wav` (offline, no mic needed). Full package docs: [`python/README.md`](python/README.md).
+
+**From the repo (no pip):**
 
 ```python
 from wakeword_engine import WakeWordEngine

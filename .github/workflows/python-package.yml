@@ -1,0 +1,67 @@
+name: Python package
+
+on:
+  push:
+    branches: [main, master]
+    paths: ['python/**', '.github/workflows/python-package.yml']
+  pull_request:
+    paths: ['python/**', '.github/workflows/python-package.yml']
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package + dev deps
+        run: pip install -e "python/[dev]"
+      - name: Run tests
+        run: pytest python/tests -v
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build sdist and wheel
+        run: |
+          pip install build twine
+          python -m build --outdir dist python/
+      - name: Twine check
+        run: twine check dist/*
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  verify-install:
+    # Install the built wheel into a clean venv — the exact pre-release check.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Clean venv install + import test
+        run: |
+          python -m venv /tmp/test-env
+          /tmp/test-env/bin/pip install dist/*.whl
+          /tmp/test-env/bin/python -c "from onnx_wakeword import WakeWordEngine, get_demo_model; e = WakeWordEngine(); e.load(*get_demo_model()); print('ok:', e.get_models())"
