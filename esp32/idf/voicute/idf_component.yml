@@ -1,4 +1,14 @@
+## ESP-IDF Component Manager manifest.
+## Published at https://components.espressif.com as `voicute/voicute`:
+##   dependencies:
+##     voicute/voicute: "^1.0.0"
+version: "1.0.0"
+description: "Offline wake-word / keyword-spotting runtime for ESP32 — INT8 TFLite-Micro inference, mel extraction, optional L1-L5 detection"
+url: "https://github.com/voicute/onnx-wakeword"
+repository: "https://github.com/voicute/onnx-wakeword.git"
+issues: "https://github.com/voicute/onnx-wakeword/issues"
+documentation: "https://github.com/voicute/onnx-wakeword/tree/main/esp32/idf/voicute"
 dependencies:
-  espressif/esp-tflite-micro: 1.4.1    # TFLite runtime; includes ESP-NN Conv2D dispatch fix
-  espressif/esp-dsp: ^1.4.0            # RFFT for mel extraction
+  espressif/esp-tflite-micro: "1.4.1"    # TFLite runtime; includes ESP-NN Conv2D dispatch fix
+  espressif/esp-dsp: "^1.4.0"            # RFFT for mel extraction
 # espressif/esp-nn: ^1.1.0             # OFF - test model first

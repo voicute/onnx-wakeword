@@ -32,7 +32,7 @@ static void on_wake(voice_event_t ev, voice_evt_data_t d, void *user) {
 // 2. 初始化和主循环
 void app_main() {
     recognizer_config_t cfg = {
-        .model_path   = "/spiffs",       // SPIFFS 路径
+        .model_path   = "/spiffs",       // SPIFFS 路径, 模型 = <词>.tflite
         .threshold    = 0.40f,           // 概率阈值
         .l1_enabled   = 0,               // L1: 连续帧 (ESP32 推理太慢, 建议关)
         .l2_enabled   = 1,               // L2: peak/bg 比 > 3×
@@ -41,20 +41,19 @@ void app_main() {
         .l5_enabled   = 1,               // L5: 能量跳变 (过滤音乐/视频)
         .l5_delta     = 200.0f,          // L5 RMS 增量阈值
 
-        // ▼ 注入你的模型 ▼
-        .postprocess     = my_postprocess,   // 必填: head 回调
-        .compiled_model  = g_model_data,     // 编译模型 (和 SPIFFS 二选一)
-        .compiled_len    = g_model_len,
+        // ▼ 必填: 模型 head 回调 (你的模型权重, 见 kws_postprocess.h) ▼
+        .postprocess  = my_postprocess,
     };
 
     recognizer_start(&cfg);
     recognizer_register_callback(0, on_wake, NULL);
 
-    // 主循环: 每帧喂 16192 采样点 PCM (16kHz, int16)
+    // 主循环: 每 160ms 喂一窗 MEL_AUDIO_LEN=16080 采样 PCM (16kHz, int16)
     while (1) {
-        // 从麦克风 / ring buffer 取 16192 samples
+        // 从麦克风 / ring buffer 取最新 16080 samples + 该窗 RMS
         int64_t now_ms = esp_timer_get_time() / 1000;
         recognizer_run_frame(pcm, rms, now_ms);
+        vTaskDelay(pdMS_TO_TICKS(160));
     }
 }
 ```
@@ -104,9 +103,7 @@ typedef struct {
     int   l5_enabled;           // 能量跳变
     float l5_delta;             // L5 RMS 增量 (默认 200)
 
-    kws_postprocess_fn postprocess;   // ▼ 必填: 模型 head
-    const uint8_t *compiled_model;    // 编译模型数据
-    size_t compiled_len;              // 编译模型长度
+    kws_postprocess_fn postprocess;   // ▼ 必填: 模型 head 回调
 } recognizer_config_t;
 ```
 
@@ -114,16 +111,17 @@ typedef struct {
 
 ```c
 typedef float (*kws_postprocess_fn)(const int8_t *backbone_out,
-                                     float out_scale, int out_zero);
+                                     float out_scale, int out_zero, int model_idx);
 ```
 
 模型 head 回调。TFLite Invoke 后调用，把 backbone 输出转为概率 [0,1]。
 
 | 参数 | 说明 |
-|------|------|
+| ---- | ---- |
 | `backbone_out` | TFLite 输出张量 data (int8) |
 | `out_scale` | 输出张量量化 scale |
 | `out_zero` | 输出张量量化 zero_point |
+| `model_idx` | 产生该输出的模型编号（一回调分发多模型头时用） |
 | 返回 | 唤醒概率 [0, 1] |
 
 ## 接入新模型

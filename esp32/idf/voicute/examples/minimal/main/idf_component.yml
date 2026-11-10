@@ -1,0 +1,8 @@
+dependencies:
+  # Local tree builds resolve the component from this repo via relative path.
+  # `idf.py create-project-from-example` rewrites this to the published
+  # registry version automatically:
+  #   voicute/voicute: "^1.0.0"
+  voicute:
+    version: "*"
+    path: "../../.."
