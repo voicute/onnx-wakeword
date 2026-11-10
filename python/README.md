@@ -54,12 +54,13 @@ from onnx_wakeword import WakeWordEngine
 engine = WakeWordEngine()
 # Absolute or relative paths both work; model files inside the JSON are
 # resolved relative to the JSON file, never the current working directory.
-engine.load(
-    model_info_path="/absolute/path/model_info.json",
-    mel_path="/absolute/path/melspectrogram.onnx",
-)
+engine.load("/path/to/model_info.json")          # mel resolved automatically
+# engine.load("/path/to/model_info.json",        # explicit mel override
+#             mel_path="/path/to/melspectrogram.onnx")
 engine.start(lambda word, prob, info: print(word, prob))
 ```
+
+You usually only need your keyword model (`model.onnx` + `model_info.json`, or the ZIP export) — the shared `melspectrogram.onnx` preprocessing module **ships inside the wheel**. Resolution order: explicit `mel_path` > a `melspectrogram.onnx` inside your bundle > the bundled copy. No `head.h` needed on Python — the classification head is inside the ONNX graph (that split only exists on the ESP32/TFLite path).
 
 A model bundle is `model_info.json` + one or more keyword `.onnx` files + `melspectrogram.onnx` — or a single `.zip` containing all of them (the format voicute.com exports). See the [models directory](../models/) for free demo models in 7 languages.
 
@@ -133,7 +134,9 @@ onnx-wakeword-demo --wav speech.wav    # 离线扫描 WAV，无需麦克风
 ```
 
 - 支持 Python 3.9–3.13，Windows / Linux / macOS
-- 自定义模型：`engine.load("你的/model_info.json", "你的/melspectrogram.onnx")`，支持绝对路径、ZIP 包
+- 自定义模型：`engine.load("你的/model_info.json")` 即可 —— mel 预处理模块已内置在包里，
+  也可显式传第二个参数覆盖；支持绝对路径、ZIP 包（含 ZIP 内嵌 mel）
+- Python 端不需要 head.h：分类头在 ONNX 图内（head.h 拆分只存在于 ESP32/TFLite 路径）
 - L1–L5 检测层全部可开关（连帧门控 / 峰值背景比 / 冷却 / 防循环 / 能量跳变）
 - 无麦克风环境下核心推理照常可用（`predict()` / `detect()` 纯 numpy）
 - 核心包不依赖任何音频库；pyaudio 与 sounddevice 均为可选 extra，二选一即可

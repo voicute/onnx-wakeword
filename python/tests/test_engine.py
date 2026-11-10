@@ -122,6 +122,57 @@ def test_zip_bundle_load(tmp_path):
     assert eng.get_models()[0]['name'] == 'Hey Jarvis'
 
 
+def test_load_without_mel_auto_resolves(tmp_path):
+    """Keyword-model-only bundles work: mel falls back to the package copy."""
+    import shutil
+    src_info, _ = get_demo_model()
+    model_file = 'heyjarvis_r1.onnx'
+    d = tmp_path / 'model_only'
+    d.mkdir()
+    shutil.copy(os.path.join(os.path.dirname(src_info), model_file), d / model_file)
+    with open(src_info, encoding='utf-8') as f:
+        cfg = json.load(f)
+    (d / 'model_info.json').write_text(json.dumps(cfg), encoding='utf-8')
+
+    eng = WakeWordEngine()
+    eng.load(str(d / 'model_info.json'))          # no mel_path at all
+    assert eng.is_loaded()
+    assert eng.get_models()[0]['name'] == 'Hey Jarvis'
+    r = eng.predict(np.zeros(eng.audio_samples_needed, dtype=np.float32))
+    assert r is not None
+
+
+def test_load_zip_without_mel_auto_resolves(tmp_path):
+    """ZIP with only model_info.json + model: mel comes from the package."""
+    import shutil
+    import zipfile
+    src_info, src_mel = get_demo_model()
+    zpath = tmp_path / 'model_only.zip'
+    with zipfile.ZipFile(zpath, 'w') as zf:
+        zf.write(src_info, 'model_info.json')
+        zf.write(os.path.join(os.path.dirname(src_info), 'heyjarvis_r1.onnx'), 'heyjarvis_r1.onnx')
+
+    eng = WakeWordEngine()
+    eng.load(str(zpath))                          # no mel_path at all
+    assert eng.is_loaded()
+
+
+def test_load_zip_with_embedded_mel(tmp_path):
+    """ZIP containing its own melspectrogram.onnx uses it (bundle-local wins)."""
+    import zipfile
+    src_info, src_mel = get_demo_model()
+    zpath = tmp_path / 'full.zip'
+    with zipfile.ZipFile(zpath, 'w') as zf:
+        zf.write(src_info, 'model_info.json')
+        zf.write(src_mel, 'melspectrogram.onnx')
+        zf.write(os.path.join(os.path.dirname(src_info), 'heyjarvis_r1.onnx'), 'heyjarvis_r1.onnx')
+
+    eng = WakeWordEngine()
+    eng.load(str(zpath))
+    assert eng.is_loaded()
+    assert eng.get_models()[0]['name'] == 'Hey Jarvis'
+
+
 def test_mel_time_mismatch_fails_fast(tmp_path):
     """A wrong mel_time in the JSON must raise at load(), not at first inference."""
     src_info, src_mel = get_demo_model()

@@ -275,6 +275,9 @@ engine = WakeWordEngine()
 engine.load(*get_demo_model())   # bundled "Hey Jarvis" demo model
 engine.set_L1(True)
 engine.start(lambda word, prob, info: print(f'Detected: {word} ({prob:.0%})'))
+
+# Your own model — just the keyword export; melspectrogram ships in the wheel:
+engine.load('/path/to/model_info.json')
 ```
 
 CLI demo: `onnx-wakeword-demo` (microphone) or `onnx-wakeword-demo --wav speech.wav` (offline, no mic needed). Full package docs: [`python/README.md`](python/README.md).

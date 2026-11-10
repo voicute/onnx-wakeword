@@ -77,14 +77,22 @@ class WakeWordEngine:
     # Model loading
     # ═══════════════════════════
 
-    def load(self, model_info_path, mel_path):
-        """Load models from model_info.json (or ZIP) and melspectrogram.
+    def load(self, model_info_path, mel_path=None):
+        """Load models from model_info.json (or ZIP).
+
+        ``mel_path`` is optional: when omitted, the melspectrogram model is
+        resolved automatically — first from the model bundle itself
+        (``melspectrogram.onnx`` next to the JSON, or inside the ZIP), then
+        falling back to the copy bundled with this package. Most users only
+        need their keyword model; the shared mel module ships in the wheel.
 
         Both paths may be absolute or relative; model files referenced inside
         ``model_info.json`` are resolved relative to the JSON file's own
         directory (or inside the ZIP), never the current working directory.
         """
-        self.mel_sess = ort.InferenceSession(mel_path, providers=['CPUExecutionProvider'])
+        model_info_path = str(model_info_path)
+        mel_input = self._resolve_mel(model_info_path, mel_path)
+        self.mel_sess = ort.InferenceSession(mel_input, providers=['CPUExecutionProvider'])
 
         # Check if ZIP
         with open(model_info_path, 'rb') as f:
@@ -147,6 +155,28 @@ class WakeWordEngine:
         else:
             max_frames = max(m.get('emb_frames', 1) for m in self.models)
             self.audio_samples_needed = (76 + (max_frames - 1) * 8) * MEL_HOP + MEL_WIN
+
+    @staticmethod
+    def _resolve_mel(model_info_path, mel_path=None):
+        """Resolve the melspectrogram model for a bundle. Priority: explicit
+        mel_path > copy inside the bundle (dir or ZIP; forward compatibility
+        if the mel ever changes) > the copy bundled with this package.
+        Returns a filesystem path, or model bytes for a ZIP-embedded mel
+        (ORT accepts both)."""
+        from .demo import get_demo_model
+        if mel_path is not None:
+            return str(mel_path)
+        with open(model_info_path, 'rb') as f:
+            if f.read(2) == b'PK':
+                import zipfile
+                with zipfile.ZipFile(model_info_path, 'r') as zf:
+                    if 'melspectrogram.onnx' in zf.namelist():
+                        return zf.read('melspectrogram.onnx')
+            else:
+                local = os.path.join(os.path.dirname(model_info_path), 'melspectrogram.onnx')
+                if os.path.exists(local):
+                    return local
+        return get_demo_model()[1]
 
     @staticmethod
     def _resolve_input_cols(session, expect_mel_time=None):

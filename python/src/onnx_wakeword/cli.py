@@ -126,9 +126,10 @@ def main(argv=None):
                 print(f"  [{i}] {d['name']}  ({d['maxInputChannels']} ch, {int(d['defaultSampleRate'])} Hz)")
         return 0
 
-    demo_info, demo_mel = get_demo_model()
+    demo_info, _demo_mel = get_demo_model()
     info = args.info or demo_info
-    mel = args.mel or demo_mel
+    # --mel omitted → engine auto-resolves (bundle-local copy > bundled mel)
+    mel = args.mel
 
     eng = WakeWordEngine()
     eng.set_threshold(args.threshold)
