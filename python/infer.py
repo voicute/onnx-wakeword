@@ -38,9 +38,14 @@ def find_info(model_dir):
 
 
 def main():
+    # Windows consoles (cp1252/cp936) crash printing device names / CJK
+    # wake words — make printing lossy instead of fatal.
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(errors='replace')
     p = argparse.ArgumentParser(description='Voicute Wake Word Inference (package API)')
     p.add_argument('--model-dir', default='../models/', help='Directory with model_info.json + melspectrogram.onnx')
     p.add_argument('--info', help='Path to model_info.json (overrides --model-dir)')
+    p.add_argument('--mel', default=None, help='Path to melspectrogram.onnx (default: bundle-local, else the package-bundled copy)')
     p.add_argument('--threshold', type=float, default=0.5, help='Detection threshold')
     p.add_argument('--cons', type=int, default=3, help='L1 consecutive frames')
     p.add_argument('--cooldown', type=float, default=3.5, help='Cooldown in seconds')
@@ -52,10 +57,9 @@ def main():
         return
 
     info_path = args.info or find_info(args.model_dir)
-    mel_path = os.path.join(os.path.dirname(info_path), 'melspectrogram.onnx')
 
     eng = WakeWordEngine()
-    eng.load(info_path, mel_path)
+    eng.load(info_path, args.mel)   # mel omitted → engine auto-resolves
     eng.set_threshold(args.threshold)
     eng.set_cooldown(int(args.cooldown * 1000))
 

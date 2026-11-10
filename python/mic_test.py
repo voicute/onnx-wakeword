@@ -74,8 +74,13 @@ def find_info(args):
 
 
 def main():
+    # Windows consoles (cp1252/cp936) crash printing device names / CJK
+    # wake words — make printing lossy instead of fatal.
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(errors='replace')
     p = argparse.ArgumentParser()
     p.add_argument('--info', help='Path to model_info.json (default: models/model_info.json)')
+    p.add_argument('--mel', default=None, help='Path to melspectrogram.onnx (default: bundle-local, else the package-bundled copy)')
     p.add_argument('--model', help='Find the model_info.json whose model file matches this name')
     p.add_argument('--thr', type=float, default=0.5)
     p.add_argument('--cons', type=int, default=2)
@@ -104,12 +109,9 @@ def main():
         l5 = 0 if args.l5 is None else args.l5
 
     info_path = find_info(args)
-    mel_path = os.path.join(os.path.dirname(info_path), 'melspectrogram.onnx')
-    if not os.path.exists(mel_path):
-        mel_path = os.path.join(MODEL_DIR, 'melspectrogram.onnx')
 
     eng = WakeWordEngine()
-    eng.load(info_path, mel_path)
+    eng.load(info_path, args.mel)   # mel omitted → engine auto-resolves
     if not eng.is_loaded():
         sys.exit(f'engine failed to load {info_path}: {eng.getErrorMessage() if hasattr(eng, "getErrorMessage") else "see log"}')
     needed = eng.audio_samples_needed
