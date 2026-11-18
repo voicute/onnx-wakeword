@@ -242,15 +242,13 @@ window.VoicuteWakeWord = {
 
             // L1-L5
             if (triggerWord == null) {
+                // L1: consecutive frames — allow brief gaps (below-threshold frames) without resetting
                 const hi = prob > threshold && word;
-                if (!hi) { cons = 0; consWord = ''; return null; }  // threshold gate, always active
-                // L1: consecutive frames with gap tolerance
-                if (L1) {
-                    if (hi && word === consWord) { cons++; consGap = 0; }
-                    else if (hi) { consWord = word; cons = 1; consGap = 0; }
-                    else if (cons > 0) { consGap++; if (consGap > MAX_GAP) { cons = 0; consWord = ''; consGap = 0; } }
-                    if (cons < consFrames) { if (hi) console.log(`  L1 cons=${cons}/${consFrames}`); _lastBlock = 'L1'; return null; }
-                }
+                if (hi && word === consWord) { cons++; consGap = 0; }
+                else if (hi) { consWord = word; cons = 1; consGap = 0; }
+                else if (cons > 0) { consGap++; if (consGap > MAX_GAP) { cons = 0; consWord = ''; consGap = 0; } }
+                const need = L1 ? consFrames : 1;
+                if (!hi || cons < need) { if (hi) { console.log(`  L1 cons=${cons}/${need}`); _lastBlock = 'L1'; } return null; }
                 // L2: peak / background (peak is always computed, matches Android)
                 let peak = 0;
                 for (let i = 0; i < HIST; i++) {
